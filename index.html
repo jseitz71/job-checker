@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!--APP-START-->
+<title>Job Checker</title>
+<meta name="description" content="Paste a LinkedIn job page and see how likely it is to be a ghost job, with every finding traced to its source.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: four-step inspector — stepper bar with live rating, one screen per step, criteria drawer at the foot */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --sunk: #e8ecf0;
+  --ink: #17212b;
+  --muted: #5a6876;
+  --line: #d3dae1;
+  --accent: #1f6f8b;
+  --accent-ink: #ffffff;
+  --bad: #b3261e;  --bad-bg: #fbe9e7;
+  --warn: #9a6200; --warn-bg: #fdf1dc;
+  --good: #1e7a46; --good-bg: #e3f4ea;
+  --ghost: #5b4fa8; --ghost-bg: #ece9f8;
+  --mark: #ffe08a;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11171d; --surface: #18212a; --sunk: #0d1318; --ink: #e4eaf0; --muted: #94a3b1; --line: #2a3642;
+  --accent: #5fb4d3; --accent-ink: #0b1a21;
+  --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f2bb5a; --warn-bg: #352a14; --good: #6fd39a; --good-bg: #16301f;
+  --ghost: #b3a8f5; --ghost-bg: #26223f; --mark: #6b5a1c;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11171d; --surface: #18212a; --sunk: #0d1318; --ink: #e4eaf0; --muted: #94a3b1; --line: #2a3642;
+  --accent: #5fb4d3; --accent-ink: #0b1a21;
+  --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f2bb5a; --warn-bg: #352a14; --good: #6fd39a; --good-bg: #16301f;
+  --ghost: #b3a8f5; --ghost-bg: #26223f; --mark: #6b5a1c;
+  color-scheme: dark }
+
+* { box-sizing: border-box }
+html, body { margin: 0 }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 800; letter-spacing: -.01em; }
+h2 { font-size: clamp(20px, 3vw, 24px); font-weight: 600; }
+h3 { font-size: 15px; font-weight: 600; }
+h2:focus { outline: none; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 62ch; margin-top: 6px; }
+.eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.fine { font-size: 12px; color: var(--muted); }
+a { color: var(--accent); }
+code { font-family: var(--f-mono); font-size: .92em; background: var(--sunk); padding: 1px 4px; border-radius: 3px; }
+kbd { font: 500 12px var(--f-mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; background: var(--surface); white-space: nowrap; }
+
+button { font: 500 14px var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.small { font-size: 12px; padding: 5px 10px; }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; font-size: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; margin-bottom: 18px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand svg { flex: none; }
+
+.stepper { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; background: var(--bg); padding-block: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.stepper ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, auto)); gap: 4px; flex: 1 1 420px; }
+.stepper li { min-width: 0; }
+.stepper button { width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 6px 8px; border-radius: 6px; text-align: left; color: var(--muted); }
+.stepper button:disabled { opacity: .5; }
+.stepper button b { font: 600 12px/1 var(--f-mono); width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; border: 1px solid var(--line); flex: none; background: var(--surface); }
+.stepper button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.stepper button.done b { background: var(--sunk); color: var(--ink); }
+.stepper button[aria-current="step"] { color: var(--ink); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.stepper button[aria-current="step"] b { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+@media (max-width: 560px) { .stepper button span { display: none; } .stepper button[aria-current="step"] span { display: inline; } }
+.live { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.live strong { font: 800 18px/1 var(--f-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.screen { display: grid; gap: 18px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+@media (max-width: 520px) { .panel { padding: 16px; } }
+.navrow { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.navrow .btnrow { margin-left: auto; }
+.howto { display: grid; gap: 6px; padding-left: 22px; margin: 0; font-size: 15px; }
+.howto li::marker { font-family: var(--f-mono); color: var(--accent); }
+.tip { font-size: 13px; color: var(--muted); }
+label.f { display: grid; gap: 4px; font-size: 13px; font-weight: 500; align-content: start; }
+label.f .lab { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+input, textarea, select { font: 15px var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; width: 100%; }
+input[type=number] { font-variant-numeric: tabular-nums; }
+textarea { resize: vertical; line-height: 1.55; }
+#paste { min-height: 150px; font-family: var(--f-mono); font-size: 13px; }
+#text { min-height: 180px; font-size: 14px; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .fields { grid-template-columns: minmax(0, 1fr); } }
+.msg { font-size: 14px; padding: 10px 12px; border-radius: 8px; background: var(--sunk); }
+.msg:empty { display: none; }
+.msg.warn { background: var(--warn-bg); color: var(--ink); border-left: 3px solid var(--warn); }
+
+.prov { font: 500 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 5px; border-radius: 3px; white-space: nowrap; background: var(--sunk); color: var(--muted); }
+.prov.page { color: var(--accent); }
+.prov.sugg { color: var(--ghost); }
+
+.found { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.frow { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 12px; border-top: 1px solid var(--line); align-items: start; }
+.frow:first-child { border-top: 0; }
+.frow .k { color: var(--muted); font-size: 13px; padding-top: 3px; }
+.frow .v { min-width: 0; overflow-wrap: anywhere; font-size: 15px; display: grid; gap: 4px; justify-items: start; }
+.frow .v small { color: var(--muted); font: 12px var(--f-mono); }
+.frow .miss { color: var(--muted); font-style: italic; font-size: 14px; }
+.frow.editing { background: var(--sunk); }
+.frow.editing .k { color: var(--ink); font-weight: 500; }
+.frow .act { display: flex; align-items: start; }
+.frow .editbox { justify-items: stretch; }
+.frow .editbox input, .frow .editbox textarea { background: var(--surface); }
+.frow .editbox textarea { min-height: 220px; font-size: 14px; }
+.frow .numwrap { display: flex; align-items: center; gap: 8px; }
+.frow .numwrap input { max-width: 140px; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; font-size: 14px; }
+.chip { font: 600 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 6px; border-radius: 3px; background: var(--good-bg); color: var(--good); }
+.vline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.iconbtn { border: 1px solid transparent; background: none; padding: 7px; border-radius: 6px; color: var(--muted); display: inline-grid; place-items: center; line-height: 0; }
+.iconbtn:hover:not(:disabled) { color: var(--accent); border-color: var(--line); background: var(--surface); }
+.errtext { color: var(--bad); font-size: 13px; }
+.frow.flash { animation: none; }
+@media (prefers-reduced-motion: no-preference) { .frow.flash { animation: flash 1.4s ease-out; } @keyframes flash { from { background: var(--good-bg); } to { background: transparent; } } }
+@media (max-width: 480px) {
+  .frow { grid-template-columns: minmax(0, 1fr) auto; }
+  .frow .k { grid-column: 1; grid-row: 1; }
+  .frow .act { grid-column: 2; grid-row: 1; }
+  .frow .v { grid-column: 1 / -1; grid-row: 2; }
+}
+
+.lookup { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; background: var(--sunk); border-radius: 8px; padding: 12px 14px; }
+.lookup p { flex: 1 1 280px; font-size: 14px; }
+.qgroup { display: grid; gap: 10px; }
+.q { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; background: var(--surface); }
+.q .row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
+.q .row p { flex: 1 1 260px; min-width: 0; font-size: 14px; font-weight: 500; }
+.q .tools { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; }
+.q input[type=url] { font-size: 13px; padding: 6px 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 12px; background: transparent; font-size: 13px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.auto-tag { font: 500 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ghost); white-space: nowrap; }
+.sugg { border-left: 3px solid var(--ghost); background: var(--ghost-bg); border-radius: 0 6px 6px 0; padding: 10px 12px; display: grid; gap: 6px; font-size: 14px; }
+.sugg.none { border-left-color: var(--line); background: var(--sunk); }
+.sugg .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.sugg ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; }
+.sugg .src { color: var(--muted); }
+.sample { font: 600 10px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 5px; border-radius: 3px; background: var(--warn-bg); color: var(--warn); }
+.skel { height: 12px; border-radius: 3px; background: var(--line); width: 70%; }
+.skel + .skel { width: 45%; }
+@media (prefers-reduced-motion: no-preference) { .skel { animation: pulse 1.2s ease-in-out infinite alternate; } @keyframes pulse { from { opacity: .45 } to { opacity: 1 } } }
+
+.tag { display: inline-block; font: 500 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 5px; border-radius: 3px; vertical-align: 2px; }
+.tag.scam { background: var(--bad-bg); color: var(--bad); }
+.tag.ghost { background: var(--ghost-bg); color: var(--ghost); }
+
+.results { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+@media (max-width: 820px) { .results { grid-template-columns: minmax(0, 1fr); } }
+.rating { display: flex; align-items: center; gap: 18px; }
+.big { font: 800 72px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.big small { font-size: 24px; color: var(--muted); font-weight: 600; }
+.num.bad { color: var(--bad); } .num.warn { color: var(--warn); } .num.good { color: var(--good); }
+.scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.scale i { height: 10px; border-radius: 2px; background: var(--sunk); }
+.scale i.on.r1, .scale i.on.r2 { background: var(--bad); }
+.scale i.on.r3 { background: var(--warn); }
+.scale i.on.r4, .scale i.on.r5 { background: var(--good); }
+.scale-labels { display: flex; justify-content: space-between; font: 11px var(--f-mono); color: var(--muted); margin-top: 4px; }
+.pill { display: inline-block; font: 600 12px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; background: var(--sunk); color: var(--muted); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.good { background: var(--good-bg); color: var(--good); }
+#vSummary { margin-top: 6px; color: var(--muted); font-size: 14px; }
+.subs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sub { background: var(--sunk); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; justify-items: start; }
+.findings { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.findings li { border-left: 3px solid var(--line); padding: 6px 0 6px 10px; display: grid; gap: 3px; min-width: 0; }
+.findings li.bad { border-color: var(--bad); }
+.findings li.bad.ghost { border-color: var(--ghost); }
+.findings li.good { border-color: var(--good); }
+.findings li.unk { color: var(--muted); }
+.findings .t { font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+.findings .w { font: 500 12px var(--f-mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.findings .crit { color: var(--bad); font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; }
+.findings .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--muted); }
+.findings q { font-size: 13px; color: var(--muted); quotes: "“" "”"; overflow-wrap: anywhere; }
+mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 2px; }
+.math { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+.math td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.math td:last-child { text-align: right; font-family: var(--f-mono); }
+.math tr.total td { font-weight: 600; border-bottom: 0; }
+.bands { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 10px; font: 11px/1.3 var(--f-mono); text-align: center; }
+.bands span { background: var(--sunk); border-radius: 4px; padding: 5px 2px; color: var(--muted); }
+.bands span.here { outline: 2px solid var(--ink); color: var(--ink); }
+.next { background: var(--sunk); border-radius: 8px; padding: 12px 14px; font-size: 14px; }
+.next ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+details > summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+
+.rules { margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.rules > summary { padding: 14px 18px; }
+.rules > summary .fine { font-weight: 400; margin-left: 8px; }
+.rules-body { padding: 0 18px 18px; display: grid; gap: 12px; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table.rt { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 13px; }
+.rt th { text-align: left; font: 500 11px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 10px; border-bottom: 1px solid var(--line); }
+.rt td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rt tr:last-child td { border-bottom: 0; }
+.rt td input[type=text] { font-size: 13px; padding: 5px 8px; }
+.rt td input[type=number] { width: 70px; font-size: 13px; padding: 5px 8px; }
+.rt td select { font-size: 13px; padding: 5px 6px; width: auto; }
+.rt td.c { text-align: center; }
+.terms { font-family: var(--f-mono); }
+@media (prefers-reduced-motion: no-preference) { .rt tr.flash td { animation: flash 1.6s ease-out; } }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; z-index: 5; }
+footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch; display: grid; gap: 6px; }
+@media (prefers-reduced-motion: no-preference) { .scale i { transition: background .25s } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">
+        <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="22" height="20" rx="3" fill="none" stroke="var(--accent)" stroke-width="2.2"/><path d="M9 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" fill="none" stroke="var(--accent)" stroke-width="2.2"/><circle cx="23" cy="22" r="6.5" fill="var(--bg)" stroke="var(--ink)" stroke-width="2.2"/><path d="M27.8 26.8 31 30" stroke="var(--ink)" stroke-width="2.6" stroke-linecap="round"/></svg>
+        <h1>Job Checker</h1>
+      </div>
+      <p class="lede">Is this job actually being filled? Paste a LinkedIn job page and get a 1–5 rating, with every finding traced to its source.</p>
+    </div>
+    <div class="btnrow">
+      <span class="fine">Try an example:</span>
+      <button type="button" class="small" id="exGhost">Ghost job</button>
+      <button type="button" class="small" id="exLegit">Active job</button>
+      <button type="button" class="small" id="exScam">Scam message</button>
+    </div>
+  </header>
+
+  <nav class="stepper" aria-label="Steps">
+    <ol>
+      <li><button type="button" data-go="1"><b>1</b><span>Paste</span></button></li>
+      <li><button type="button" data-go="2"><b>2</b><span>Review details</span></button></li>
+      <li><button type="button" data-go="3"><b>3</b><span>Verify</span></button></li>
+      <li><button type="button" data-go="4"><b>4</b><span>Results</span></button></li>
+    </ol>
+    <div class="live" id="live" aria-live="polite"></div>
+  </nav>
+
+  <section class="screen" id="s1" aria-labelledby="h1s">
+    <div class="panel">
+      <div class="eyebrow">Step 1 of 4</div>
+      <h2 id="h1s" tabindex="-1">Paste the job page</h2>
+      <ol class="howto">
+        <li>Open the job on its own page: click the job title so the address looks like <code>linkedin.com/jobs/view/…</code></li>
+        <li>If the description ends with <strong>“… see more”</strong>, click it so the full text shows.</li>
+        <li>Press <kbd>Ctrl</kbd>+<kbd>A</kbd>, then <kbd>Ctrl</kbd>+<kbd>C</kbd> (<kbd>⌘</kbd>+<kbd>A</kbd>, <kbd>⌘</kbd>+<kbd>C</kbd> on a Mac).</li>
+        <li>Click <strong>Paste &amp; check</strong>, or click the box below and paste.</li>
+      </ol>
+      <p class="tip">Copy the whole page. Menus and sidebars are fine; Job Checker ignores them. You can also paste just a job description or a recruiter's message.</p>
+      <label class="f" for="paste"><span class="lab">Copied page</span>
+        <textarea id="paste" placeholder="Paste the whole LinkedIn job page here…"></textarea>
+      </label>
+      <label class="f" for="jobUrl"><span class="lab">Link to the job post <span class="hint">optional · copy it from your browser's address bar so you can reopen the ad later</span></span>
+        <input id="jobUrl" type="url" inputmode="url" placeholder="https://www.linkedin.com/jobs/view/…">
+      </label>
+      <div class="msg" id="pasteMsg" role="status"></div>
+      <div class="navrow">
+        <button type="button" class="link" id="manual">Skip pasting and enter details by hand</button>
+        <div class="btnrow">
+          <button type="button" id="pasteBtn">Paste &amp; check</button>
+          <button type="button" class="primary" id="next1" disabled>Next: review details</button>
+        </div>
+      </div>
+      <p class="fine">Your paste is read in your browser and isn't stored. Job Checker never visits LinkedIn itself.</p>
+    </div>
+  </section>
+
+  <section class="screen" id="s2" aria-labelledby="h2s" hidden>
+    <div class="panel">
+      <div class="eyebrow">Step 2 of 4</div>
+      <h2 id="h2s" tabindex="-1">Review what we found</h2>
+      <p class="fine">Check each detail against the job post. Each one shows the line it came from. To fix one, click its pencil, make the change, then click <strong>Save</strong>. Saved changes are marked <span class="chip">Edited</span> and count toward your rating.</p>
+      <div class="found" id="found"></div>
+      <div class="msg warn" id="editMsg" role="alert"></div>
+      <details>
+        <summary>More details (optional)</summary>
+        <div class="fields" style="margin-top:12px">
+          <label class="f">Where you found it
+            <select id="source">
+              <option value="board">LinkedIn or another big job board</option>
+              <option value="niche">Niche or paid board (Built In, Dribbble, Wellfound…)</option>
+              <option value="careers">Company careers site</option>
+              <option value="unsolicited">A recruiter contacted me out of the blue</option>
+              <option value="referral">Referral from someone I know</option>
+            </select>
+          </label>
+        </div>
+      </details>
+      <div class="navrow">
+        <button type="button" data-go="1">Back</button>
+        <div class="btnrow"><button type="button" class="primary" data-go="3">Next: verify</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="s3" aria-labelledby="h3s" hidden>
+    <div class="panel">
+      <div class="eyebrow">Step 3 of 4 · optional</div>
+      <h2 id="h3s" tabindex="-1">Check what the page can't tell you</h2>
+      <p class="fine">Each answer moves the rating. Skip any you can't check; they'll be listed under “Still to check” in your results.</p>
+      <div class="lookup">
+        <p id="lookupText">Job Checker can look up company facts for you. You confirm each answer before it counts.</p>
+        <button type="button" class="primary" id="lookupBtn">Look up company facts</button>
+      </div>
+      <p class="fine" id="jobLinkLine" hidden></p>
+      <div class="msg" id="lookupMsg" role="status"></div>
+      <div id="qs"></div>
+      <div class="navrow">
+        <button type="button" data-go="2">Back</button>
+        <div class="btnrow"><button type="button" class="primary" data-go="4">See results</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="s4" aria-labelledby="h4s" hidden>
+    <div class="eyebrow" id="vEyebrow">Step 4 of 4</div>
+    <h2 id="h4s" tabindex="-1">Results</h2>
+    <div class="results">
+      <div class="panel">
+        <div class="rating">
+          <div class="big" id="vNum">–<small>/5</small></div>
+          <div><span class="pill" id="vPill">—</span><p id="vSummary"></p></div>
+        </div>
+        <div>
+          <div class="scale" id="vScale"><i class="r1"></i><i class="r2"></i><i class="r3"></i><i class="r4"></i><i class="r5"></i></div>
+          <div class="scale-labels"><span>1 ghost job</span><span>5 actively hiring</span></div>
+        </div>
+        <div class="subs">
+          <div class="sub"><span class="eyebrow">Ghost job signs</span><span class="pill" id="sGhost">—</span></div>
+          <div class="sub"><span class="eyebrow">Scam signs</span><span class="pill" id="sScam">—</span></div>
+        </div>
+        <details>
+          <summary>How this rating was worked out</summary>
+          <p class="fine" style="margin-top:8px">Every posting starts at 30 points, the middle of “Uncertain”. Warning signs add points and good signs subtract them. The total picks the rating; a scam deal-breaker sets it to 1.</p>
+          <table class="math" id="math"></table>
+          <div class="bands" id="bands"></div>
+        </details>
+        <div class="next" id="vNext"></div>
+        <div class="btnrow">
+          <button type="button" class="primary" id="copy">Copy report</button>
+          <button type="button" data-go="3">Back to verify</button>
+          <button type="button" id="again">Check another job</button>
+        </div>
+        <p class="fine">A screening aid based on common patterns, not proof either way. Companies don't publish which postings lead to hires, so even a 5 is worth confirming on the company's own careers page.</p>
+      </div>
+      <div class="panel">
+        <div><h3 style="margin-bottom:8px">Warning signs <span class="fine" id="nBad"></span></h3><ul class="findings" id="fBad"></ul></div>
+        <div><h3 style="margin-bottom:8px">Signs it's really open <span class="fine" id="nGood"></span></h3><ul class="findings" id="fGood"></ul></div>
+        <details><summary>Still to check (<span id="nUnk">0</span>)</summary><ul class="findings" id="fUnk" style="margin-top:8px"></ul></details>
+      </div>
+    </div>
+  </section>
+
+  <details class="rules" id="rulesWrap">
+    <summary>Scoring criteria<span class="fine">What Job Checker looks for and how much each sign counts</span></summary>
+    <div class="rules-body">
+      <p class="fine" style="font-size:13px">These phrase rules scan the job description. Separate phrases with commas; start one with <code>re:</code> to use a regular expression. Weight is how many points a match adds or removes. Built-in checks for posting age, applicants, experience range, tool lists, pay, LinkedIn status labels and the recruiter's email run alongside them. Your edits are saved in this browser only.</p>
+      <div class="btnrow"><button type="button" class="small" id="addRule">Add rule</button><button type="button" class="small" id="resetRules">Restore defaults</button></div>
+      <div class="tbl">
+        <table class="rt">
+          <thead><tr><th>On</th><th>Criterion</th><th>Problem</th><th>Type</th><th>Weight</th><th>Deal-breaker</th><th>Phrases</th><th></th></tr></thead>
+          <tbody id="ruleBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    <p>Job Checker isn't affiliated with or endorsed by LinkedIn. It reads only text you paste into it and processes it in your browser.</p>
+    <p>Ratings are estimates based on publicly known ghost-job and scam patterns. They're your private reading of one posting, not a statement about any company.</p>
+    <p><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms of use</a> · <a href="https://github.com/jseitz71/job-checker" target="_blank" rel="noopener">Source code</a></p>
+  </footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const STORE = "jc-rules-v1";
+const APP = "Job Checker";
+/* Set to the lookup function's URL once the backend is live, e.g. "/.netlify/functions/lookup" */
+const LOOKUP_URL = "";
+
+const DEFAULT_RULES = [
+  { id:"evergreen", cat:"ghost", label:"“Always hiring” or talent-pool language", type:"red", weight:15, critical:false,
+    terms:["talent pool","talent community","future opportunities","always looking","always hiring","evergreen","pipeline","general application","we are continuously","rolling basis","not currently hiring"] },
+  { id:"vague", cat:"ghost", label:"Generic wishlist with no real scope", type:"red", weight:10, critical:false,
+    terms:["fast-paced environment","wear many hats","rockstar","ninja","unicorn","various projects","our ecosystem","core ecosystem","other duties as assigned","all levels","mid-weight","lead complex initiatives","mentor junior"] },
+  { id:"specific", cat:"ghost", label:"Names a specific project, team, or start", type:"green", weight:10, critical:false,
+    terms:["backfill","replacing","new team","we're building","we are building","launching","redesign our","this role will own","you'll own","in your first 90 days","first 30 days","start date","re:\\b(q[1-4]|20\\d\\d)\\b launch"] },
+  { id:"research", cat:"ghost", label:"Mentions research or real users", type:"green", weight:5, critical:false,
+    terms:["user research","usability testing","customer interviews","personas","research"] },
+  { id:"structure", cat:"ghost", label:"Real responsibilities and requirements listed", type:"green", weight:8, critical:false,
+    terms:["responsibilities","qualifications","requirements","what you'll do","what you will do","about the role"] },
+  { id:"benefits", cat:"ghost", label:"Standard benefits named", type:"green", weight:6, critical:false,
+    terms:["401(k)","401k","health insurance","dental","paid time off","pto","parental leave","equal opportunity employer"] },
+  { id:"process", cat:"ghost", label:"Interview process described", type:"green", weight:6, critical:false,
+    terms:["phone screen","video interview","onsite interview","on-site interview","interview with the hiring manager","interview loop","panel interview","portfolio review"] },
+  { id:"pay", cat:"scam", label:"Asks you to pay a fee or buy something", type:"red", weight:35, critical:true,
+    terms:["training fee","starter kit","registration fee","application fee","pay for your own equipment","purchase equipment","purchase the equipment","approved vendor","background check fee","re:pay (a|the|for)[^.]{0,30}(fee|kit|training|certification)"] },
+  { id:"check", cat:"scam", label:"Check deposit or reimbursement scheme", type:"red", weight:40, critical:true,
+    terms:["send you a check","mail you a check","deposit the check","mobile deposit","cashier's check","re:reimburs\\w* (you )?for (the )?(equipment|supplies|software)","send the remaining","refund the difference"] },
+  { id:"money", cat:"scam", label:"Gift cards, crypto, or payment apps", type:"red", weight:35, critical:true,
+    terms:["gift card","bitcoin","crypto","usdt","zelle","cash app","cashapp","venmo","wire transfer","western union","moneygram"] },
+  { id:"ship", cat:"scam", label:"Reshipping or moving money for them", type:"red", weight:30, critical:true,
+    terms:["reshipping","re-shipping","package forwarding","forward packages","receive packages","payment processing agent","process payments","transfer funds","money transfer","financial agent"] },
+  { id:"pii", cat:"scam", label:"Wants SSN or bank details early", type:"red", weight:25, critical:false,
+    terms:["social security","ssn","bank account","routing number","driver's license","drivers license","copy of your id","photo of your id","direct deposit form"] },
+  { id:"chat", cat:"scam", label:"Interview over chat apps only", type:"red", weight:25, critical:false,
+    terms:["telegram","whatsapp","signal app","wickr","google hangouts","teams chat","interview via chat","chat interview","text interview","text-based interview","online chat interview"] },
+  { id:"easy", cat:"scam", label:"Too easy to get hired", type:"red", weight:15, critical:false,
+    terms:["no interview","hired on the spot","no experience needed","no experience required","anyone can do","guaranteed income","guaranteed position","be your own boss"] },
+  { id:"urgent", cat:"scam", label:"Pressure to act fast", type:"red", weight:10, critical:false,
+    terms:["immediate start","hiring immediately","act now","limited spots","respond within","only a few positions","asap"] },
+  { id:"hype", cat:"scam", label:"Earnings hype", type:"red", weight:15, critical:false,
+    terms:["earn up to","weekly pay of","re:\\$\\s?\\d{1,3}(,\\d{3})+\\s?(per|a|/)\\s?week"] }
+];
+
+const enc = s => encodeURIComponent(s.trim());
+const G = q => "https://www.google.com/search?q=" + enc(q);
+const NEWS = q => "https://news.google.com/search?q=" + enc(q);
+const LI_PEOPLE = q => "https://www.linkedin.com/search/results/people/?keywords=" + enc(q);
+const LI_POSTS = q => "https://www.linkedin.com/search/results/content/?keywords=" + enc(q) + "&datePosted=%22past-month%22&sortBy=%22date_posted%22";
+const roleWord = t => (t.match(/design|engineer|product|data|marketing|sales|analyst|manager|developer|research/i) || [t.split(/[,(\-–]/)[0]])[0];
+
+/* auto: the lookup can suggest an answer. none = points when the lookup finds nothing (weaker than a firm No). */
+const QUESTIONS = [
+  { cat:"both", id:"careers", auto:true, text:"Is this job listed on the company's own careers page?", yes:-15, no:18, none:8,
+    links: c => [["Search their careers page", G(`${c.company} careers "${c.title}"`)]] },
+  { cat:"ghost", id:"reposted", auto:true, text:"Has this job been reposted several times over weeks or months?", yes:18, no:-4, none:0,
+    links: c => [["Find copies on other job boards", G(`"${c.title}" "${c.company}"`)]], help:"Older copies on other boards show how long it's really been open." },
+  { cat:"ghost", id:"layoffs", auto:true, text:"Has the company had layoffs in this area recently?", yes:15, no:-3, none:-1,
+    links: c => [["News: layoffs", NEWS(`"${c.company}" layoffs`)]] },
+  { cat:"ghost", id:"frozen", auto:true, text:"Was the company recently acquired or reported to have a hiring freeze?", yes:15, no:-2, none:-1,
+    links: c => [["News: acquisition or hiring freeze", NEWS(`"${c.company}" acquired OR "hiring freeze"`)]] },
+  { cat:"ghost", id:"funding", auto:true, text:"Did the company recently raise funding (e.g. Series B or C)?", yes:-6, no:0, none:0,
+    links: c => [["News: funding", NEWS(`"${c.company}" raises funding`)]] },
+  { cat:"ghost", id:"leaderPost", text:"Has the hiring manager or team lead posted about this opening?", yes:-12, no:6,
+    links: c => [["LinkedIn posts from the past month", LI_POSTS(`${c.company} hiring ${roleWord(c.title)}`)]] },
+  { cat:"both", id:"recruiter", text:"Does the person who posted it work at the company and share its jobs?", yes:-10, no:12,
+    links: c => [[c.poster ? `Find ${c.poster} on LinkedIn` : "Find the poster on LinkedIn", LI_PEOPLE(`${c.poster || "recruiter"} ${c.company}`)]] },
+  { cat:"ghost", id:"recentLeft", text:"Did someone recently leave this role?", yes:-8, no:0,
+    links: c => [["People with this title at the company", LI_PEOPLE(`${c.title} ${c.company}`)]], help:"In the results, filter by Past company to see recent departures." },
+  { cat:"ghost", id:"reply", text:"Did someone on the team reply when you asked about the role?", yes:-12, no:8, links: () => [] },
+  { cat:"scam", id:"address", auto:true, text:"Can you find the company's address and main phone number yourself?", yes:-6, no:10, none:6,
+    links: c => [["Search address and phone", G(`${c.company} headquarters address phone`)]] },
+  { cat:"scam", id:"voice", text:"Have you talked to a real person by phone or video?", yes:-8, no:6, links: () => [] },
+  { cat:"scam", id:"askedPay", text:"Have they asked you to pay, buy equipment, or deposit a check?", yes:45, no:-5, critical:"yes", links: () => [] },
+  { cat:"scam", id:"askedPii", text:"Did they ask for your SSN or bank info before a written offer?", yes:30, no:-3, links: () => [] },
+  { cat:"scam", id:"noInterview", text:"Did they offer you the job without a real interview?", yes:25, no:-3, links: () => [] }
+];
+
+const FREE_MAIL = ["gmail","yahoo","outlook","hotmail","aol","icloud","proton","protonmail","gmx","mail","yandex","zoho","live","msn","me"];
+const TOOLS = ["figma","sketch","adobe xd","framer","webflow","invision","axure","photoshop","illustrator","after effects","principle","protopie","zeplin","miro","balsamiq","origami"];
+
+const JUNK = /^(skip to (main )?content|home|my network|jobs|messaging|notifications|me|for business|try premium.*|post a job.*|learning|easy apply|apply|save|saved|share|show more options|show match details|show more|show less|see more|… ?more|more|message|follow|following|promoted|promoted by hirer|job poster|tailor my resume|help me stand out|use ai to assess how you fit|am i a good fit for this job\??|how can i best position myself for this job\??|.*\blogo|\d+ notifications?.*|reactivate premium.*|retry premium.*)$/i;
+const AGE_RE = /(reposted\s+)?\b(\d+|an?|one)\s+(minute|hour|day|week|month|year)s?\s+ago/i;
+const APP_RE = /(over\s+)?([\d,]+)\+?\s+(applicants?|people clicked apply)/i;
+const PAY_RE = /\$\s?\d[\d,.]*\s?[kK]?(?:\s?\/\s?(?:yr|hr|year|hour|mo|month))?(?:\s*(?:-|–|—|to)\s*\$\s?\d[\d,.]*\s?[kK]?(?:\s?\/\s?(?:yr|hr|year|hour|mo|month))?)?/;
+const END_RE = /^(set alert for similar jobs|see how you compare|about the company|looking for talent\?|people also viewed|more jobs|similar jobs|job search faster with premium|explore premium|people you can reach out to|interested in working with us in the future\?)/i;
+const UNIT_DAYS = { minute:0, hour:0, day:1, week:7, month:30, year:365 };
+const locationLike = s => /,\s*[A-Z]{2}\b|,\s*[A-Z][a-z]+/.test(s) || /\b(united states|united kingdom|canada|remote|hybrid|on-site|metropolitan|area|worldwide|emea|europe|india|germany|australia)\b/i.test(s);
+
+function parseLinkedIn(raw) {
+  const lines = raw.replace(/\r/g, "").split("\n").map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const found = {}, flags = [];
+  const put = (k, value, line) => { if (value !== "" && value != null && !found[k]) found[k] = { value, line }; };
+  const aboutIdx = lines.findIndex(l => /^about the job$/i.test(l));
+  const headEnd = aboutIdx >= 0 ? aboutIdx : Math.min(lines.length, 60);
+  const acI = lines.findIndex(l => /^about the company$/i.test(l));
+  const aboutCo = acI >= 0 && lines[acI + 1] && !JUNK.test(lines[acI + 1]) ? lines[acI + 1] : "";
+  let meta = -1;
+  for (let i = 0; i < headEnd; i++) {
+    const l = lines[i];
+    if (AGE_RE.test(l) && (l.includes("·") || APP_RE.test(l)) && l.length < 200) { meta = i; break; }
+  }
+  if (meta >= 0) {
+    const l = lines[meta];
+    const a = AGE_RE.exec(l);
+    const n = /^\d+$/.test(a[2]) ? +a[2] : 1;
+    put("days", n * UNIT_DAYS[a[3].toLowerCase()], l);
+    if (a[1]) flags.push({ id:"reposted", line:l });
+    const ap = APP_RE.exec(l) || lines.slice(meta, meta + 4).map(x => APP_RE.exec(x)).find(Boolean);
+    if (ap) put("applicants", +ap[2].replace(/,/g, ""), ap.input);
+    const plain = l.split("·").map(s => s.trim()).filter(Boolean).filter(s => !AGE_RE.test(s) && !APP_RE.test(s));
+    let t = meta - 1;
+    while (t >= 0 && (JUNK.test(lines[t]) || lines[t].length > 140)) t--;
+    const oldLayout = plain.length && plain[0] !== (lines[t] || "") && (aboutCo ? plain[0] === aboutCo : !locationLike(plain[0]));
+    if (oldLayout) { put("company", plain[0], l); if (plain[1]) put("location", plain[1], l); }
+    else {
+      if (plain[0]) put("location", plain[0], l);
+      let c = t - 1;
+      while (c >= 0 && (JUNK.test(lines[c]) || lines[c].length > 100)) c--;
+      if (c >= 0) put("company", lines[c].replace(/\s+logo$/i, ""), lines[c]);
+    }
+    if (t >= 0) put("title", lines[t], lines[t]);
+  }
+  if (aboutCo) put("company", aboutCo, "About the company · " + aboutCo);
+  for (let i = 0; i < lines.length; i++) {
+    if (i >= headEnd && found.pay) break;
+    const m = PAY_RE.exec(lines[i]);
+    if (m && /k|\/|,\d{3}|\d{3,}/i.test(m[0]) && (i < headEnd || /salary|pay|range|compensation|base/i.test(lines[i]))) { put("pay", m[0].trim(), lines[i]); break; }
+  }
+  const ht = lines.findIndex(l => /^meet the hiring team$/i.test(l));
+  if (ht >= 0) {
+    let p = ht + 1;
+    while (p < lines.length && JUNK.test(lines[p])) p++;
+    if (lines[p] && lines[p].length < 80) put("poster", lines[p].split("·")[0].replace(/\b(1st|2nd|3rd\+?)\b/g, "").trim(), lines[p]);
+  }
+  for (let i = 0; i < headEnd + 3 && i < lines.length; i++) {
+    const l = lines[i];
+    if (/actively (reviewing applicants|recruiting)/i.test(l)) flags.push({ id:"active", line:l });
+    if (/no longer accepting applications/i.test(l)) flags.push({ id:"closed", line:l });
+    if (/be an early applicant/i.test(l)) flags.push({ id:"early", line:l });
+  }
+  let desc;
+  if (aboutIdx >= 0) {
+    let end = lines.length;
+    for (let i = aboutIdx + 1; i < lines.length; i++) if (END_RE.test(lines[i])) { end = i; break; }
+    desc = lines.slice(aboutIdx + 1, end).filter(l => !/^(show more|show less|see more|… ?more)$/i.test(l));
+  } else desc = meta >= 0 ? lines.slice(meta + 1).filter(l => !JUNK.test(l)) : lines;
+  // Website and recruiter email, wherever they appear in the paste
+  const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)*\.[A-Z]{2,}/gi;
+  const SITE_RE = /\b(?:https?:\/\/)?(?:www\.)?((?:[a-z0-9-]+\.)+(?:com|io|co|ai|org|net|us|app|dev|tech|inc|biz|careers|jobs|ca|uk|de|au|in))\b(?:\/[^\s),]*)?/gi;
+  const IGNORE = /(^|\.)(linkedin\.com|lnkd\.in|google\.com|bit\.ly|indeed\.com|glassdoor\.com|example\.com)$/i;
+  for (const l of lines) {
+    for (const m of l.matchAll(EMAIL_RE)) { const dom = m[0].split("@")[1]; if (!IGNORE.test(dom)) { put("email", m[0].toLowerCase(), l); break; } }
+    const noEmail = l.replace(EMAIL_RE, " ");
+    for (const m of noEmail.matchAll(SITE_RE)) { const dom = m[1].toLowerCase(); if (!IGNORE.test(dom)) { put("site", dom, l); break; } }
+  }
+  const text = desc.join("\n");
+  if (text) put("text", text, aboutIdx >= 0 ? "Everything under “About the job”" : "The whole paste (no “About the job” heading found)");
+  return { found, flags, isLinkedIn: meta >= 0 || aboutIdx >= 0 };
+}
+
+const FIELDS = ["source"];
+const PARSED = ["title","company","location","days","applicants","pay","poster","site","email","url","text"];
+const EDIT_FIELDS = [["title","Job title","text"],["company","Company","text"],["location","Location","text"],["days","Posted","number"],["applicants","Applicants","number"],["pay","Pay","text"],["poster","Posted by","text"],["site","Company website","text"],["email","Recruiter email","text"],["url","Job post link","url"],["text","Job description","textarea"]];
+const FIELD_NAME = Object.fromEntries(EDIT_FIELDS.map(([k, n]) => [k, n]));
+let vals = {}, editing = null;
+function val(k) { return PARSED.includes(k) ? String(vals[k] ?? "") : $(k).value; }
+let rules, answers = {}, notes = {}, prov = {}, parsed = { found:{}, flags:[], isLinkedIn:false }, example = "";
+let suggestions = {}, accepted = {}, lookupState = "idle", step = 1, reached = 1, manualMode = false;
+
+function freshDefaults() { return JSON.parse(JSON.stringify(DEFAULT_RULES)).map(r => ({ ...r, enabled:true })); }
+function loadRules() { try { const s = localStorage.getItem(STORE); if (s) return JSON.parse(s); } catch (e) {} return freshDefaults(); }
+function saveRules() { try { localStorage.setItem(STORE, JSON.stringify(rules)); } catch (e) {} }
+rules = loadRules();
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+function termRegex(t) {
+  t = t.trim(); if (!t) return null;
+  try {
+    if (t.startsWith("re:")) return new RegExp(t.slice(3), "i");
+    return new RegExp("(^|[^a-z0-9])(" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?![a-z0-9])", "i");
+  } catch (e) { return null; }
+}
+function snippet(text, at, len) {
+  const a = Math.max(0, at - 45), b = Math.min(text.length, at + len + 45);
+  return ((a ? "…" : "") + esc(text.slice(a, at)) + "<mark>" + esc(text.slice(at, at + len)) + "</mark>" + esc(text.slice(at + len, b)) + (b < text.length ? "…" : "")).replace(/\s+/g, " ");
+}
+function findMatch(text, terms) {
+  for (const t of terms) {
+    const re = termRegex(t); if (!re) continue;
+    const m = re.exec(text); if (!m) continue;
+    const hit = m[2] !== undefined && !t.startsWith("re:") ? m[2] : m[0];
+    return snippet(text, m.index + m[0].indexOf(hit), hit.length);
+  }
+  return null;
+}
+function domainOf(s) { return (s || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[\/?#]/)[0]; }
+function baseName(d) { const p = d.split("."); return p.length >= 2 ? p[p.length - 2] : d; }
+function safeUrl(u) { return /^https?:\/\/\S+$/i.test(u || "") ? u : ""; }
+const PROV_LABEL = { page:"from the posting", you:"you entered", answered:"you answered", suggested:"looked up, you confirmed", calc:"calculated" };
+const ANS_LABEL = { yes:"yes", no:"no", none:"nothing found" };
+
+function evaluate() {
+  const v = val;
+  const body = v("text"), title = v("title");
+  const text = [title, v("pay"), body].join("\n");
+  const bad = [], good = [], unk = [];
+  const pts = { scam:0, ghost:0 }; let up = 0, down = 0, critical = false;
+  const add = (item, w) => {
+    if (!w) return;
+    const cats = item.cat === "both" ? ["scam","ghost"] : [item.cat];
+    cats.forEach(c => pts[c] += w / cats.length);
+    if (w > 0) up += w; else down -= w;
+    (w > 0 ? bad : good).push({ ...item, weight:Math.abs(w) });
+  };
+  const fieldSrc = k => prov[k] === "page" ? "page" : "you";
+  for (const r of rules) {
+    if (!r.enabled) continue;
+    const snip = findMatch(text, r.terms);
+    if (!snip) continue;
+    add({ label:r.label, cat:r.cat || "scam", snip, src:fieldSrc("text"), critical:r.critical && r.type === "red" }, r.type === "red" ? r.weight : -r.weight);
+    if (r.critical && r.type === "red") critical = true;
+  }
+  for (const f of parsed.flags) {
+    const s = esc(f.line);
+    if (f.id === "reposted") add({ label:"LinkedIn shows it was reposted", cat:"ghost", src:"page", snip:s }, 8);
+    if (f.id === "active") add({ label:"LinkedIn says it's actively reviewing applicants", cat:"ghost", src:"page", snip:s }, -8);
+    if (f.id === "closed") add({ label:"LinkedIn says it's no longer accepting applications", cat:"ghost", src:"page", snip:s }, 30);
+    if (f.id === "early") add({ label:"Few applicants so far", cat:"ghost", src:"page", snip:s }, -3);
+  }
+  const days = v("days") === "" ? null : +v("days");
+  const apps = v("applicants") === "" ? null : +v("applicants");
+  const dsnip = days == null ? "" : (prov.days === "page" && parsed.found.days ? esc(parsed.found.days.line) : days + " days");
+  if (days == null) unk.push({ label:"How many days ago it was posted (step 2)" });
+  else if (days > 90) add({ label:"Open for more than 3 months", cat:"ghost", src:fieldSrc("days"), snip:dsnip }, 25);
+  else if (days > 45) add({ label:"Open for more than 45 days", cat:"ghost", src:fieldSrc("days"), snip:dsnip }, 15);
+  else if (days > 30) add({ label:"Open for more than 30 days", cat:"ghost", src:fieldSrc("days"), snip:dsnip }, 10);
+  else if (days <= 7) add({ label:"Posted within the past week", cat:"ghost", src:fieldSrc("days"), snip:dsnip }, -8);
+  const asnip = apps == null ? "" : (prov.applicants === "page" && parsed.found.applicants ? esc(parsed.found.applicants.line) : apps + " applicants");
+  if (apps != null && apps >= 1000 && (days == null || days > 21)) add({ label:"Thousands of applicants and still open", cat:"ghost", src:fieldSrc("applicants"), snip:asnip }, 12);
+  else if (apps != null && apps >= 100 && days != null && days > 30) add({ label:"100+ applicants and still open after a month", cat:"ghost", src:fieldSrc("applicants"), snip:asnip }, 6);
+  const range = /(\d{1,2})\s*\+?\s*(?:-|–|—|to)\s*(\d{1,2})\s*\+?\s*(?:years|yrs)/i.exec(body);
+  if (range && (+range[2] - +range[1]) >= 4) add({ label:"Very wide experience range", cat:"ghost", src:fieldSrc("text"), snip:snippet(body, range.index, range[0].length) }, 10);
+  const lower = body.toLowerCase();
+  const tools = TOOLS.filter(t => new RegExp("(^|[^a-z])" + t.replace(/ /g, "\\s") + "(?![a-z])").test(lower));
+  if (tools.length >= 5) add({ label:"Asks for nearly every tool", cat:"ghost", src:fieldSrc("text"), snip:esc(tools.join(", ")) }, 10);
+  const words = body.trim() ? body.trim().split(/\s+/).length : 0;
+  if (words > 0 && words < 90) add({ label:"Very short description", cat:"ghost", src:"calc", snip:words + " words" }, 6);
+  const hasPay = v("pay").trim() || /\$\s?\d/.test(body);
+  const senior = /\b(senior|sr\.?|lead|principal|staff|director|head of)\b/i.test(title);
+  if (!hasPay && senior) add({ label:"Senior role with no salary range", cat:"ghost", src:"calc", snip:"No pay found in the posting" }, 12);
+  else if (!hasPay && words > 0) add({ label:"No pay listed", cat:"ghost", src:"calc", snip:"No pay found in the posting" }, 5);
+  else if (hasPay) add({ label:"Pay is stated", cat:"ghost", src:fieldSrc("pay"), snip:esc(v("pay").trim() || "in the description") }, -5);
+  if (/(design|ux|ui\b)/i.test(title) && words > 0 && !/research|usability|user interview/i.test(body))
+    add({ label:"Design role that never mentions research", cat:"ghost", src:"calc", snip:"No mention of research or usability in the description" }, 8);
+  const em = v("email").trim().toLowerCase(), site = domainOf(v("site"));
+  const edom = em.includes("@") ? em.split("@").pop() : "";
+  if (edom) {
+    if (FREE_MAIL.includes(baseName(edom))) add({ label:"Recruiter uses a personal email address", cat:"scam", src:"you", snip:esc(em) }, 20);
+    else if (site && (edom === site || edom.endsWith("." + site))) add({ label:"Recruiter email matches company website", cat:"scam", src:"you", snip:esc(em) }, -10);
+    else if (site) add({ label:"Recruiter email domain doesn't match the company site", cat:"scam", src:"you", snip:esc(edom) + " vs " + esc(site) }, 15);
+  }
+  if (body.trim() && !v("company").trim()) add({ label:"No company named", cat:"scam", src:"calc", snip:"" }, 10);
+  const src = v("source");
+  if (src === "unsolicited") add({ label:"A recruiter reached out to you unprompted", cat:"scam", src:"you", snip:"" }, 10);
+  if (src === "careers") add({ label:"Found on the company's own careers site", cat:"both", src:"you", snip:"" }, -15);
+  if (src === "niche") add({ label:"Found on a niche or paid job board", cat:"ghost", src:"you", snip:"Employers pay more to post there, so listings tend to be active" }, -8);
+  if (src === "referral") add({ label:"Referred by someone you know", cat:"both", src:"you", snip:"" }, -10);
+  for (const q of QUESTIONS) {
+    const a = answers[q.id];
+    if (!a) { if (q.cat !== "scam") unk.push({ label:q.text }); continue; }
+    const w = q[a] || 0;
+    const s = suggestions[q.id];
+    const viaSugg = accepted[q.id] && s && s.answer === a;
+    const link = viaSugg ? (s.sources.find(x => safeUrl(x.url)) || {}).url : notes[q.id];
+    const snip = viaSugg ? esc(s.summary) + (s.sample ? " (sample data)" : "") : "";
+    add({ label:q.text.replace(/\?$/, "") + ": " + ANS_LABEL[a], cat:q.cat, src:viaSugg ? "suggested" : "answered", link, snip, critical:q.critical === a }, w);
+    if (q.critical === a) critical = true;
+  }
+  const total = 30 + up - down;
+  const risk = Math.max(0, Math.min(100, total));
+  let rating = risk < 15 ? 5 : risk < 30 ? 4 : risk < 50 ? 3 : risk < 70 ? 2 : 1;
+  if (critical) rating = 1;
+  const hasInput = body.trim().length > 5 || title.trim();
+  return { rating: hasInput ? rating : null, total, up, down, pts, bad, good, unk, critical };
+}
+
+const VERDICT = {
+  1: ["bad",  "Likely ghost job", "Strong signs nobody is actively hiring for this. Don't spend hours tailoring for it."],
+  2: ["bad",  "Probably not active", "Several ghost-job signs. Verify it's open before you apply."],
+  3: ["warn", "Uncertain", "Mixed signals. Confirm it on the company's careers page and with someone on the team."],
+  4: ["good", "Probably hiring", "Mostly signs of a real opening. A quick check is still worthwhile."],
+  5: ["good", "Actively hiring", "Strong signs of a real, current opening."]
+};
+const BANDS = [[5,"0–14"],[4,"15–29"],[3,"30–49"],[2,"50–69"],[1,"70+"]];
+function level(p) { return p < 12 ? ["good","Few"] : p < 30 ? ["warn","Some"] : ["bad","Many"]; }
+
+function li(it, cls) {
+  const tag = it.cat === "ghost" ? '<span class="tag ghost">ghost</span> ' : it.cat === "scam" ? '<span class="tag scam">scam</span> ' : "";
+  const link = safeUrl(it.link) ? ` <a href="${esc(it.link)}" target="_blank" rel="noopener">source ↗</a>` : "";
+  const pc = it.src === "page" ? "page" : it.src === "suggested" ? "sugg" : "";
+  const meta = cls === "unk" ? "" : `<div class="meta"><span class="prov ${pc}">${PROV_LABEL[it.src] || "calculated"}</span>${link}</div>`;
+  return `<li class="${cls} ${it.cat || ""}"><div class="t"><span>${cls === "bad" ? tag : ""}${esc(it.label)}${it.critical ? ' <span class="crit">deal-breaker</span>' : ""}</span>${it.weight ? `<span class="w">${cls === "bad" ? "+" : "−"}${Math.round(it.weight)}</span>` : ""}</div>${it.snip ? `<q>${it.snip}</q>` : ""}${meta}</li>`;
+}
+
+function render() {
+  const r = evaluate();
+  window._last = r;
+  if (r.rating == null) $("live").innerHTML = "";
+  else {
+    const [cls, name] = r.critical ? ["bad", "Possible scam"] : VERDICT[r.rating];
+    $("live").innerHTML = `<span>Rating so far</span><strong><span class="num ${cls}">${r.rating}</span>/5</strong><span class="pill ${cls}">${name}</span>`;
+  }
+  $("vEyebrow").textContent = "Step 4 of 4" + (example ? " · example: " + example : "");
+  if (r.rating == null) {
+    $("vNum").innerHTML = "–<small>/5</small>"; $("vPill").className = "pill"; $("vPill").textContent = "No posting yet";
+    $("vSummary").textContent = "Go back to step 1 and paste a job page.";
+    ["sScam","sGhost"].forEach(id => { $(id).className = "pill"; $(id).textContent = "—"; });
+  } else {
+    const [cls, name, sum] = VERDICT[r.rating];
+    $("vNum").innerHTML = `<span class="num ${r.critical ? "bad" : cls}">${r.rating}</span><small>/5</small>`;
+    $("vPill").className = "pill " + cls; $("vPill").textContent = name;
+    if (r.critical) { $("vPill").textContent = "Possible scam"; $("vSummary").textContent = "A scam deal-breaker was found. Don't send money, ID, or bank details."; }
+    else $("vSummary").textContent = (r.rating <= 3 && r.pts.scam > r.pts.ghost ? "Most warning signs here are scam signs. " : "") + sum;
+    [["sScam", r.critical ? 99 : r.pts.scam], ["sGhost", r.pts.ghost]].forEach(([id, p]) => { const [c, t] = level(p); $(id).className = "pill " + c; $(id).textContent = t; });
+  }
+  [...$("vScale").children].forEach((el, i) => el.classList.toggle("on", r.rating != null && i < r.rating));
+  const order = (a, b) => (a.cat === "scam") - (b.cat === "scam") || b.weight - a.weight;
+  $("fBad").innerHTML = r.bad.length ? r.bad.sort(order).map(i => li(i, "bad")).join("") : '<li class="unk">None found</li>';
+  $("fGood").innerHTML = r.good.length ? r.good.sort(order).map(i => li(i, "good")).join("") : '<li class="unk">None found</li>';
+  $("nBad").textContent = r.bad.length ? "(" + r.bad.length + ")" : ""; $("nGood").textContent = r.good.length ? "(" + r.good.length + ")" : "";
+  $("fUnk").innerHTML = r.unk.map(i => li(i, "unk")).join(""); $("nUnk").textContent = r.unk.length;
+  $("math").innerHTML = `<tr><td>Starting point</td><td>30</td></tr><tr><td>Warning signs (${r.bad.length})</td><td>+${Math.round(r.up)}</td></tr><tr><td>Good signs (${r.good.length})</td><td>−${Math.round(r.down)}</td></tr><tr class="total"><td>Total${r.critical ? " (deal-breaker overrides to 1)" : ""}</td><td>${Math.round(r.total)}</td></tr>`;
+  $("bands").innerHTML = BANDS.map(([n, range]) => `<span class="${r.rating === n ? "here" : ""}">${n}/5<br>${range}</span>`).join("");
+  const scamHigh = r.critical || r.pts.scam >= 30, ghostHigh = r.pts.ghost >= 12;
+  const open = r.unk.length;
+  $("vNext").innerHTML = scamHigh
+    ? `<strong>This may be a scam</strong><ul><li>Stop replying. Don't deposit any check, send money, or share ID or bank details.</li><li>Report the posting on the site where you found it.</li><li>Report it to the FTC at <a href="https://reportfraud.ftc.gov" target="_blank" rel="noopener">reportfraud.ftc.gov</a> and the FBI at <a href="https://www.ic3.gov" target="_blank" rel="noopener">ic3.gov</a>.</li></ul>`
+    : `<strong>${ghostHigh ? "To find out if it's really open" : "Before you invest time"}</strong><ul>
+      <li>Apply through the company's own careers page if the job is there.</li>
+      <li>${open ? `Answer the ${open} check${open > 1 ? "s" : ""} still open in step 3.` : "Re-check in a week; postings that keep getting reposted are a warning sign."}</li>
+      <li>Send a short note to someone on the team. Silence from several people often means the search is inactive.</li>
+      <li>On LinkedIn, filter job searches to Past 24 hours or Past week.</li></ul>`;
+}
+
+const PENCIL = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.2 2.3a1.6 1.6 0 0 1 2.3 0l.2.2a1.6 1.6 0 0 1 0 2.3L6 12.5l-3.3.8.8-3.3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m9.8 3.7 2.5 2.5" stroke="currentColor" stroke-width="1.5"/></svg>';
+function shown(k, v, line) {
+  if (v === "") return "";
+  if (k === "days") return +v === 0 ? "Today" : v + (+v === 1 ? " day ago" : " days ago");
+  if (k === "applicants") return v + (line && /over|\+/i.test(line) ? "+" : "") + " applicants";
+  return v;
+}
+function shortLine(line, value) {
+  if (line.length <= 110) return line;
+  const i = line.toLowerCase().indexOf(String(value).toLowerCase());
+  if (i < 0) return line.slice(0, 107) + "…";
+  const a = Math.max(0, i - 45), z = Math.min(line.length, i + String(value).length + 45);
+  return (a ? "…" : "") + line.slice(a, z) + (z < line.length ? "…" : "");
+}
+function rowHtml(k, name, type) {
+  const v = val(k), orig = parsed.found[k];
+  if (editing === k) {
+    const ctl = type === "textarea"
+      ? `<textarea id="ed-${k}" data-draft="${k}">${esc(v)}</textarea>`
+      : type === "number"
+        ? `<span class="numwrap"><input id="ed-${k}" data-draft="${k}" type="number" min="0" step="1" inputmode="numeric" value="${esc(v)}"><span class="fine">${k === "days" ? "days ago (0 = today)" : "applicants"}</span></span>`
+        : `<input id="ed-${k}" data-draft="${k}" type="${type === "url" ? "url" : "text"}" ${type === "url" ? 'inputmode="url" placeholder="https://…"' : ""} value="${esc(v)}">`;
+    return `<div class="frow editing" data-row="${k}"><div class="k"><label for="ed-${k}">${name}</label></div>
+      <div class="v editbox">${ctl}<span class="errtext" id="err-${k}" hidden></span>
+      <div class="btnrow"><button type="button" class="small primary" data-save="${k}" hidden>Save</button><button type="button" class="small" data-cancel="${k}">Cancel</button><span class="fine" id="hint-${k}">${type === "textarea" ? "Make a change to save it. Ctrl+Enter saves." : "Make a change to save it. Enter saves, Esc cancels."}</span></div></div><div class="act"></div></div>`;
+  }
+  const edited = prov[k] === "you";
+  let body;
+  if (k === "text" && v) {
+    const words = v.trim().split(/\s+/).length;
+    body = `<div class="clamp">${esc(v)}</div><div class="vline">${edited ? '<span class="chip">Edited</span>' : ""}<small>${words} words${!edited && orig ? " · " + esc(orig.line) : ""}</small></div>`;
+  } else if (k === "url" && v) {
+    body = `<div class="vline"><a href="${esc(safeUrl(v) || "#")}" target="_blank" rel="noopener">Open the job post ↗</a></div><small>${esc(v)}</small>`;
+  } else if (v) {
+    body = `<div class="vline"><span>${esc(shown(k, v, orig && orig.line))}</span>${edited ? '<span class="chip">Edited</span>' : ""}</div>${!edited && orig ? `<small>“${esc(shortLine(orig.line, String(orig.value)))}”</small>` : ""}`;
+  } else {
+    body = `<span class="miss">${edited && orig ? "Removed by you" : k === "url" ? "No link added. Paste the job's address with the pencil to reopen the ad later." : k === "email" ? "Not in the posting. If a recruiter emailed you, add their address with the pencil." : "Not found. Click the pencil to add it."}</span>`;
+    const co = val("company").trim();
+    if (k === "site" && co) body += `<a class="fine" href="${esc(G(co + " official website"))}" target="_blank" rel="noopener">Search for ${esc(co)}'s official website ↗</a>`;
+    if ((k === "site" || k === "email") && val("url")) body += `<a class="fine" href="${esc(val("url"))}" target="_blank" rel="noopener">Check the job post ↗</a>`;
+  }
+  if (edited && k === "url") body += "";
+  else if (edited) body += orig
+    ? `<div class="vline"><small>Was: ${esc(k === "text" ? orig.value.trim().split(/\s+/).length + " words from the posting" : "“" + shown(k, String(orig.value), orig.line) + "” from the posting")}</small><button type="button" class="link fine" data-restore="${k}">Restore original</button></div>`
+    : `<small>Added by you</small>`;
+  return `<div class="frow ${edited ? "edited" : ""}" data-row="${k}"><div class="k">${name}</div><div class="v">${body}</div>
+    <div class="act"><button type="button" class="iconbtn" data-edit="${k}" aria-label="Edit ${name.toLowerCase()}" title="Edit ${name.toLowerCase()}">${PENCIL}</button></div></div>`;
+}
+function renderFound() {
+  const flags = parsed.flags.length ? `<div class="frow"><div class="k">LinkedIn labels</div><div class="v"><span>${parsed.flags.map(x => esc(({reposted:"Reposted",active:"Actively reviewing applicants",closed:"No longer accepting applications",early:"Be an early applicant"})[x.id])).join(", ")}</span><small>Read from the posting. These can't be edited.</small></div><div class="act"></div></div>` : "";
+  $("found").innerHTML = EDIT_FIELDS.map(([k, n, t]) => rowHtml(k, n, t)).join("") + flags;
+}
+function dirtyField() {
+  if (!editing) return null;
+  const el = $("ed-" + editing);
+  return el && el.value !== val(editing) ? editing : null;
+}
+function warnUnsaved(k) {
+  $("editMsg").textContent = `You changed ${FIELD_NAME[k].toLowerCase()} but haven't saved it. Click Save to keep the change, or Cancel to discard it.`;
+  const el = $("ed-" + k); if (el) el.focus();
+}
+function openEditor(k) {
+  const d = dirtyField();
+  if (d && d !== k) { warnUnsaved(d); return; }
+  editing = k; $("editMsg").textContent = "";
+  renderFound();
+  const el = $("ed-" + k); el.focus();
+  if (el.select && el.tagName === "INPUT") el.select();
+}
+function closeEditor(k, refocus = true) {
+  editing = null; $("editMsg").textContent = "";
+  renderFound();
+  if (refocus) { const b = document.querySelector(`[data-edit="${k}"]`); if (b) b.focus(); }
+}
+function saveEdit(k) {
+  const el = $("ed-" + k); if (!el) return;
+  let nv = k === "text" ? el.value.replace(/\s+$/, "") : el.value.trim();
+  if ((k === "days" || k === "applicants") && nv !== "" && !/^\d+$/.test(nv)) {
+    const e = $("err-" + k); e.textContent = "Enter a whole number, or leave it blank."; e.hidden = false; el.focus(); return;
+  }
+  if (k === "url" && nv) { const u = normUrl(nv); if (!u) { const e = $("err-" + k); e.textContent = "That doesn't look like a web address."; e.hidden = false; el.focus(); return; } nv = u; }
+  if (k === "site" && nv) nv = nv.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  if (k === "email" && nv && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(nv)) { const e = $("err-" + k); e.textContent = "That doesn't look like an email address."; e.hidden = false; el.focus(); return; }
+  if (k === "url") $("jobUrl").value = nv;
+  const orig = parsed.found[k];
+  vals[k] = nv;
+  if (orig && String(orig.value) === nv) prov[k] = "page";
+  else if (nv || orig) prov[k] = "you";
+  else delete prov[k];
+  closeEditor(k);
+  const row = document.querySelector(`[data-row="${k}"]`);
+  if (row) { row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash"); }
+  toast(FIELD_NAME[k] + " saved");
+  render();
+}
+$("found").addEventListener("click", e => {
+  const t = e.target.closest("[data-edit],[data-save],[data-cancel],[data-restore]"); if (!t) return;
+  if (t.dataset.edit) openEditor(t.dataset.edit);
+  else if (t.dataset.save) saveEdit(t.dataset.save);
+  else if (t.dataset.cancel) closeEditor(t.dataset.cancel);
+  else if (t.dataset.restore) {
+    const k = t.dataset.restore; vals[k] = String(parsed.found[k].value); prov[k] = "page";
+    renderFound(); render(); toast(FIELD_NAME[k] + " restored");
+  }
+});
+$("found").addEventListener("input", e => {
+  const k = e.target.dataset.draft; if (!k) return;
+  const changed = e.target.value !== val(k);
+  document.querySelector(`[data-save="${k}"]`).hidden = !changed;
+  $("hint-" + k).hidden = changed;
+  $("err-" + k).hidden = true;
+  if (!changed) $("editMsg").textContent = "";
+});
+$("found").addEventListener("keydown", e => {
+  const k = e.target.dataset.draft; if (!k) return;
+  if (e.key === "Escape") { e.preventDefault(); closeEditor(k); }
+  else if (e.key === "Enter" && (e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey)) { e.preventDefault(); if (dirtyField()) saveEdit(k); }
+});
+
+function ctx() { return { title:val("title"), company:val("company"), poster:val("poster") }; }
+function suggBlock(q) {
+  if (!q.auto) return "";
+  if (lookupState === "loading") return `<div class="sugg none" aria-hidden="true"><div class="skel"></div><div class="skel"></div></div>`;
+  const s = suggestions[q.id]; if (!s) return "";
+  const using = accepted[q.id] && answers[q.id] === s.answer;
+  const head = s.answer === "none" ? "Nothing found" : "Suggested: " + (s.answer === "yes" ? "Yes" : "No");
+  const srcs = s.sources.length ? `<ul>${s.sources.map(x => {
+    const t = esc(x.title), meta = [x.site, x.date].filter(Boolean).map(esc).join(" · ");
+    return `<li>${safeUrl(x.url) ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${t} ↗</a>` : t}${meta ? ` <span class="src">· ${meta}</span>` : ""}</li>`;
+  }).join("")}</ul>` : "";
+  return `<div class="sugg ${s.answer === "none" ? "none" : ""}">
+    <div class="head"><strong>${head}</strong><span class="fine">${s.sample ? '<span class="sample">sample data</span> ' : ""}checked ${esc(s.checked)}</span></div>
+    <p>${esc(s.summary)}</p>${srcs}
+    <div class="btnrow"><button type="button" class="small ${using ? "" : "primary"}" data-accept="${q.id}" ${using ? "disabled" : ""}>${using ? "✓ Using this answer" : s.answer === "none" ? "Use “nothing found”" : "Use this answer"}</button>
+    <span class="fine">${s.answer === "none" ? "Counts lightly, since a missing result isn't proof." : "Or pick your own answer above."}</span></div>
+  </div>`;
+}
+function qRow(q) {
+  const c = ctx(), ready = c.company.trim();
+  const links = q.links(c).map(([label, url]) => ready ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)} ↗</a>` : `<span class="fine">${esc(label)} (add the company name in step 2)</span>`).join("");
+  const a = answers[q.id] || "";
+  const viaSugg = accepted[q.id] && suggestions[q.id] && suggestions[q.id].answer === a;
+  return `<div class="q"><div class="row"><p>${esc(q.text)}${q.auto ? ' <span class="auto-tag">· can be looked up</span>' : ""}</p>
+    <div class="seg" role="group" aria-label="${esc(q.text)}">${["yes","no",""].map(x => `<button type="button" data-q="${q.id}" data-a="${x}" aria-pressed="${a === x}">${x === "yes" ? "Yes" : x === "no" ? "No" : "Not sure"}</button>`).join("")}</div></div>
+    ${suggBlock(q)}
+    ${links || q.help ? `<div class="tools">${links}${q.help ? `<span class="fine">${esc(q.help)}</span>` : ""}</div>` : ""}
+    ${a && !viaSugg ? `<input type="url" id="src-${q.id}" data-note="${q.id}" placeholder="Link you used to check (optional)" value="${esc(notes[q.id] || "")}" aria-label="Source link for: ${esc(q.text)}">` : ""}</div>`;
+}
+function renderQs() {
+  const open = $("scamQs") ? $("scamQs").open : false;
+  const main = QUESTIONS.filter(q => q.cat !== "scam"), scam = QUESTIONS.filter(q => q.cat === "scam");
+  const answered = scam.some(q => answers[q.id]);
+  $("qs").innerHTML = `<div class="qgroup">${main.map(qRow).join("")}</div>
+    <details id="scamQs" ${open || answered ? "open" : ""} style="margin-top:14px"><summary><span class="tag scam">scam</span> Scam checks <span class="fine" style="font-weight:400">· if a recruiter has contacted you</span></summary><div class="qgroup" style="margin-top:10px">${scam.map(qRow).join("")}</div></details>`;
+}
+$("qs").addEventListener("click", e => {
+  const acc = e.target.closest("button[data-accept]");
+  if (acc) { const id = acc.dataset.accept; answers[id] = suggestions[id].answer; accepted[id] = true; delete notes[id]; renderQs(); render(); return; }
+  const b = e.target.closest("button[data-q]"); if (!b) return;
+  const id = b.dataset.q;
+  accepted[id] = false;
+  if (b.dataset.a) answers[id] = b.dataset.a; else { delete answers[id]; delete notes[id]; }
+  renderQs(); render();
+});
+$("qs").addEventListener("input", e => { const id = e.target.dataset.note; if (!id) return; notes[id] = e.target.value.trim(); render(); });
+
+function nowLabel() { return "today " + new Date().toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }); }
+function updateLookupBar() {
+  const has = Object.keys(suggestions).length;
+  if (LOOKUP_URL) {
+    $("lookupBtn").disabled = !ctx().company.trim();
+    $("lookupBtn").textContent = has ? "Look up again" : "Look up company facts";
+    $("lookupText").textContent = "Job Checker can look up the careers page, reposts, layoffs, funding and more. Only the company name and job title are sent. You confirm each answer before it counts.";
+  } else if (SAMPLE_SUGG[example]) {
+    $("lookupBtn").disabled = false; $("lookupBtn").textContent = has ? "Reload sample lookup" : "Show sample lookup";
+    $("lookupText").textContent = "Automatic lookups aren't switched on yet. This example shows how they'll look, using clearly marked sample data. You confirm each answer before it counts.";
+  } else {
+    $("lookupBtn").disabled = true; $("lookupBtn").textContent = "Look up company facts";
+    $("lookupText").textContent = "Automatic company lookups are coming soon. For now, use the search link on each question. Load an example job to preview how lookups will look.";
+  }
+}
+$("lookupBtn").onclick = async () => {
+  $("lookupMsg").textContent = "";
+  lookupState = "loading"; renderQs();
+  try {
+    if (LOOKUP_URL) {
+      const c = ctx();
+      const res = await fetch(LOOKUP_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ company:c.company, title:c.title }) });
+      if (res.status === 429) throw new Error("Lookups are paused until tomorrow. The rest of Job Checker still works.");
+      if (!res.ok) throw new Error("The lookup didn't finish. Try again in a minute, or use the search links.");
+      const data = await res.json();
+      suggestions = {}; accepted = {};
+      for (const [id, s] of Object.entries(data.suggestions || {})) suggestions[id] = { ...s, checked: s.checked || nowLabel(), sources: s.sources || [] };
+    } else {
+      await new Promise(r => setTimeout(r, 700));
+      suggestions = {}; accepted = {};
+      for (const [id, s] of Object.entries(SAMPLE_SUGG[example] || {})) suggestions[id] = { ...s, sample:true, checked:nowLabel() };
+    }
+    QUESTIONS.forEach(q => { if (q.auto && !suggestions[q.id]) suggestions[q.id] = { answer:"none", summary:"No results came back for this check.", sources:[], checked:nowLabel(), sample:!LOOKUP_URL }; });
+    const n = Object.values(suggestions).filter(s => s.answer !== "none").length;
+    $("lookupMsg").textContent = `Found suggestions for ${n} of ${Object.keys(suggestions).length} checks. Review each one and click “Use this answer” to count it.`;
+  } catch (err) { $("lookupMsg").textContent = err.message; }
+  lookupState = "idle"; renderQs(); updateLookupBar(); render();
+};
+
+function normUrl(u) { u = (u || "").trim(); if (!u) return ""; if (!/^https?:\/\//i.test(u)) u = "https://" + u; return safeUrl(u); }
+function syncUrl() { const u = normUrl($("jobUrl").value); if (u) { vals.url = u; prov.url = "you"; } else if (!$("jobUrl").value.trim()) { vals.url = ""; delete prov.url; } }
+$("jobUrl").addEventListener("input", () => { syncUrl(); renderFound(); });
+function hasPosting() { return val("text").trim().length > 5 || val("title").trim(); }
+function go(n, focus = true) {
+  n = Math.max(1, Math.min(4, n));
+  if (step === 2 && n !== 2 && focus) {
+    const d = dirtyField();
+    if (d) { warnUnsaved(d); return; }
+    if (editing) { editing = null; renderFound(); }
+    $("editMsg").textContent = "";
+  }
+  if (n > 1 && !hasPosting() && !manualMode) n = 1;
+  step = n; reached = Math.max(reached, n);
+  for (let i = 1; i <= 4; i++) $("s" + i).hidden = i !== n;
+  const open = hasPosting() || manualMode;
+  document.querySelectorAll(".stepper button").forEach(b => {
+    const k = +b.dataset.go;
+    if (k === n) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+    b.classList.toggle("done", k < reached && k !== n);
+    b.disabled = k > 1 && !open;
+  });
+  if (n === 3) {
+    renderQs(); updateLookupBar();
+    const u = val("url"); $("jobLinkLine").hidden = !u;
+    if (u) $("jobLinkLine").innerHTML = `Job post: <a href="${esc(u)}" target="_blank" rel="noopener">open it in a new tab ↗</a>`;
+  }
+  if (n === 4) render();
+  if (focus) { window.scrollTo({ top:0, behavior:"auto" }); $("h" + n + "s").focus({ preventScroll:true }); }
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b && !b.disabled) go(+b.dataset.go); });
+$("manual").onclick = () => { manualMode = true; example = ""; resetAnswers(); parsed = { found:{}, flags:[], isLinkedIn:false }; vals = {}; prov = {}; editing = null; renderFound(); render(); go(2); openEditor("title"); };
+
+function resetAnswers() { answers = {}; notes = {}; suggestions = {}; accepted = {}; $("lookupMsg").textContent = ""; }
+function runParse(raw) {
+  const t = raw.trim();
+  if (/^https?:\/\/\S+$/i.test(t)) {
+    $("jobUrl").value = t; $("paste").value = "";
+    $("pasteMsg").textContent = "That's a link to the job. We've saved it below. Job Checker can't open LinkedIn pages for you, so open the link, copy the page text (Ctrl+A, Ctrl+C) and paste that here.";
+    $("next1").disabled = true; return;
+  }
+  parsed = parseLinkedIn(raw);
+  prov = {};
+  vals = {}; editing = null; $("editMsg").textContent = "";
+  PARSED.forEach(k => { const it = parsed.found[k]; vals[k] = it ? String(it.value) : ""; if (it) prov[k] = "page"; });
+  syncUrl();
+  const n = Object.keys(parsed.found).length;
+  $("pasteMsg").textContent = !raw.trim() ? "" : parsed.isLinkedIn ? `Found ${n} details. Check them on the next screen.` : "This doesn't look like a LinkedIn job page, so the whole paste is treated as the description. You can add the other details next.";
+  $("next1").disabled = !raw.trim();
+  renderFound(); render();
+}
+function newPaste(raw, advance) { example = ""; resetAnswers(); manualMode = false; runParse(raw); go(advance && $("paste").value.trim() ? 2 : step, !!advance); }
+$("paste").addEventListener("paste", () => setTimeout(() => newPaste($("paste").value, true), 0));
+$("paste").addEventListener("input", () => { $("next1").disabled = !$("paste").value.trim(); });
+$("next1").onclick = () => { if ($("paste").value.trim() && (!hasPosting() || example === "")) newPaste($("paste").value, true); else go(2); };
+$("pasteBtn").onclick = async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t.trim()) throw new Error("empty");
+    $("paste").value = t; newPaste(t, true);
+  } catch (e) {
+    $("paste").focus();
+    $("pasteMsg").textContent = "Your browser didn't allow reading the clipboard. Click the box and press Ctrl+V (⌘+V on a Mac) instead.";
+  }
+};
+FIELDS.forEach(f => $(f).addEventListener("input", render));
+$("again").onclick = () => {
+  $("paste").value = ""; $("jobUrl").value = ""; FIELDS.forEach(f => $(f).value = f === "source" ? "board" : "");
+  example = ""; resetAnswers(); manualMode = false; parsed = { found:{}, flags:[], isLinkedIn:false }; prov = {}; vals = {}; editing = null;
+  $("pasteMsg").textContent = ""; $("next1").disabled = true; reached = 1; renderFound(); render(); go(1);
+};
+
+function renderRules() {
+  $("ruleBody").innerHTML = rules.map((r, i) => `<tr>
+    <td class="c"><input type="checkbox" id="on-${i}" data-i="${i}" data-k="enabled" ${r.enabled ? "checked" : ""} aria-label="Enable ${esc(r.label)}"></td>
+    <td style="min-width:200px"><input type="text" id="lb-${i}" data-i="${i}" data-k="label" value="${esc(r.label)}" aria-label="Criterion name"></td>
+    <td><select id="ct-${i}" data-i="${i}" data-k="cat" aria-label="Problem"><option value="ghost" ${r.cat === "ghost" ? "selected" : ""}>Ghost job</option><option value="scam" ${r.cat !== "ghost" ? "selected" : ""}>Scam</option></select></td>
+    <td><select id="ty-${i}" data-i="${i}" data-k="type" aria-label="Type"><option value="red" ${r.type === "red" ? "selected" : ""}>Warning sign</option><option value="green" ${r.type === "green" ? "selected" : ""}>Good sign</option></select></td>
+    <td><input type="number" id="wt-${i}" min="0" max="100" data-i="${i}" data-k="weight" value="${r.weight}" aria-label="Weight"></td>
+    <td class="c"><input type="checkbox" id="cr-${i}" data-i="${i}" data-k="critical" ${r.critical ? "checked" : ""} aria-label="Deal-breaker"></td>
+    <td style="min-width:300px"><input type="text" class="terms" id="tm-${i}" data-i="${i}" data-k="terms" value="${esc(r.terms.join(", "))}" placeholder="Add phrases, separated by commas" aria-label="Phrases"></td>
+    <td><button type="button" class="small" data-del="${i}" aria-label="Delete rule">Delete</button></td></tr>`).join("");
+}
+$("ruleBody").addEventListener("change", e => {
+  const el = e.target, i = el.dataset.i, k = el.dataset.k; if (i == null) return;
+  const r = rules[i];
+  if (k === "enabled" || k === "critical") r[k] = el.checked;
+  else if (k === "weight") r.weight = Math.max(0, +el.value || 0);
+  else if (k === "terms") r.terms = el.value.split(/,(?![^()\[\]{}]*[)\]}])/).map(s => s.trim()).filter(Boolean);
+  else r[k] = el.value;
+  saveRules(); render();
+});
+$("ruleBody").addEventListener("click", e => {
+  const b = e.target.closest("button[data-del]"); if (!b) return;
+  const gone = rules.splice(+b.dataset.del, 1)[0]; saveRules(); renderRules(); render(); toast(`Deleted “${gone.label}”`);
+});
+$("addRule").onclick = () => {
+  rules.unshift({ id:"c" + Date.now(), cat:"ghost", label:"New criterion", type:"red", weight:10, critical:false, terms:[], enabled:true });
+  saveRules(); renderRules();
+  const row = $("ruleBody").firstElementChild;
+  row.classList.add("flash");
+  row.scrollIntoView({ block:"nearest" });
+  const name = $("lb-0"); name.focus(); name.select();
+  toast("Rule added at the top. Name it and add phrases.");
+};
+$("resetRules").onclick = () => { rules = freshDefaults(); saveRules(); renderRules(); render(); toast("Default criteria restored"); };
+
+const EXAMPLES = {
+  "ghost job": { raw:`Skip to main content
+Home
+My Network
+Jobs
+Messaging
+Notifications
+Me
+For Business
+Northwind Cloud logo
+Northwind Cloud
+Senior Product Designer (All Levels)
+United States · Reposted 2 months ago · Over 100 people clicked apply
+Promoted by hirer · Responses managed off LinkedIn
+Remote
+Full-time
+Apply
+Save
+Show match details
+About the job
+Northwind Cloud is always looking for talented designers to join our talent community.
+
+As a Senior Product Designer you will lead complex initiatives across our core ecosystem and mentor junior designers in a fast-paced environment.
+
+Requirements
+- 2-8 years of product design experience
+- Expert in Figma, Sketch, Adobe XD, Framer, Webflow, InVision and Principle
+- Ability to wear many hats
+
+We review applications on a rolling basis for current and future opportunities.
+Show more
+Set alert for similar jobs
+Senior Product Designer, United States
+About the company
+Northwind Cloud
+48,201 followers`, answers:{ leaderPost:"no" } },
+  "active job": { raw:`Skip to main content
+Home
+Jobs
+Messaging
+Brightline Software logo
+Brightline Software
+Senior Product Designer, Billing
+St. Louis, MO · 6 days ago · 38 applicants
+Actively reviewing applicants
+$145K/yr - $170K/yr
+Hybrid
+Full-time
+Easy Apply
+Save
+Meet the hiring team
+Jordan Lee · 2nd
+Senior Technical Recruiter at Brightline Software
+Job poster
+Message
+About the job
+Brightline Software is hiring a Senior Product Designer to backfill a role on our Billing team. You'll own the redesign of our invoice and usage dashboards for enterprise admins, launching in Q2.
+
+What you'll do
+- Run user research and usability testing with finance admins
+- Design data-dense tables and multi-tenant permission flows
+- Work closely with our product manager and engineering lead
+- Contribute to our design system alongside a dedicated design-systems lead
+
+Qualifications
+- 6+ years of product design, including B2B SaaS
+- Strong Figma skills and a portfolio showing complex workflows
+
+Interview process: phone screen with a recruiter, portfolio review with the hiring manager, then a panel interview.
+
+Benefits include health insurance, dental, 401(k) match, and paid time off. Brightline Software is an equal opportunity employer. Learn more about our team at brightlinesoftware.com/careers or email jordan.lee@brightlinesoftware.com with questions.
+Show more
+Set alert for similar jobs
+About the company
+Brightline Software`, answers:{ leaderPost:"yes", recruiter:"yes" } },
+  "scam message": { raw:`URGENT: Hiring immediately! Remote Data Entry Clerk – $45/hr, no experience needed.
+
+We came across your resume and you are a great fit. Interview will be conducted via Telegram chat with our hiring manager, Mr. David Smith.
+
+Once hired you will receive a check to purchase the equipment from our approved vendor (laptop + software). Use mobile deposit and send the remaining balance via Zelle to the vendor.
+
+To set up payroll we need your full name, address, Social Security number and bank account + routing number for direct deposit.
+
+Limited spots, respond within 24 hours! Reply to hr.globallogistics@gmail.com`, answers:{ askedPay:"yes", voice:"no" },
+    extra:{ title:"Remote Data Entry Clerk", company:"Global Logistics Solutions", source:"unsolicited" } }
+};
+/* Sample lookups: invented for the fictional example companies, never shown for a real posting. */
+const SAMPLE_SUGG = {
+  "ghost job": {
+    careers:{ answer:"no", summary:"Northwind Cloud's job board lists 14 open roles. None is a Senior Product Designer.", sources:[{ title:"Northwind Cloud careers: 14 open roles", site:"Company job board" }] },
+    reposted:{ answer:"yes", summary:"The same posting appears on 2 other job boards. The oldest copy is dated 4 months ago.", sources:[{ title:"Senior Product Designer (All Levels), Northwind Cloud", site:"Job board A", date:"Jun 2026" },{ title:"Senior Product Designer, Northwind Cloud", site:"Job board B", date:"Aug 2026" }] },
+    layoffs:{ answer:"yes", summary:"2 news articles in the past 6 months report layoffs affecting product and design staff.", sources:[{ title:"Northwind Cloud cuts 12% of product staff", site:"Tech news site", date:"Aug 2026" },{ title:"Northwind restructures its design org", site:"Business news site", date:"Jul 2026" }] },
+    funding:{ answer:"none", summary:"No funding news found in the past 12 months.", sources:[] }
+  },
+  "active job": {
+    careers:{ answer:"yes", summary:"Brightline Software's careers page lists “Senior Product Designer, Billing”, posted 6 days ago.", sources:[{ title:"Senior Product Designer, Billing", site:"Company careers page", date:"Sep 2026" }] },
+    reposted:{ answer:"no", summary:"Found on 1 other job board with the same recent date. No older copies.", sources:[{ title:"Senior Product Designer, Billing, Brightline Software", site:"Job board A", date:"Sep 2026" }] },
+    funding:{ answer:"yes", summary:"Brightline Software announced a Series C round 3 months ago.", sources:[{ title:"Brightline Software raises Series C to expand its billing platform", site:"Tech news site", date:"Jun 2026" }] },
+    layoffs:{ answer:"none", summary:"No layoff news found in the past 12 months.", sources:[] },
+    frozen:{ answer:"none", summary:"No news of an acquisition or hiring freeze.", sources:[] }
+  },
+  "scam message": {
+    careers:{ answer:"none", summary:"No careers page or company website found for “Global Logistics Solutions” that matches this role.", sources:[] },
+    address:{ answer:"no", summary:"Several unrelated companies share this name. None lists this recruiter or a matching email domain.", sources:[{ title:"Search results for “Global Logistics Solutions”", site:"Web search" }] }
+  }
+};
+function loadExample(name) {
+  const ex = EXAMPLES[name];
+  $("source").value = "board"; $("jobUrl").value = "";
+  $("paste").value = ex.raw; resetAnswers(); manualMode = false;
+  runParse(ex.raw);
+  if (ex.extra) Object.entries(ex.extra).forEach(([k, x]) => { if (PARSED.includes(k)) { vals[k] = x; prov[k] = "you"; } else $(k).value = x; });
+  answers = { ...ex.answers };
+  example = name; $("pasteMsg").textContent = "Example loaded (fictional company).";
+  renderFound(); render(); go(2);
+}
+$("exGhost").onclick = () => loadExample("ghost job");
+$("exLegit").onclick = () => loadExample("active job");
+$("exScam").onclick = () => loadExample("scam message");
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => t.hidden = true, 1800); }
+$("copy").onclick = async () => {
+  const r = evaluate();
+  const strip = s => s.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+  const item = (i, sign) => `- ${sign}${Math.round(i.weight)} ${i.label}${i.critical ? " (deal-breaker)" : ""} [${PROV_LABEL[i.src] || "calculated"}]${i.snip ? ': "' + strip(i.snip) + '"' : ""}${safeUrl(i.link) ? " — " + i.link : ""}`;
+  const lines = [
+    `${APP} — ${val("title") || "Untitled"} at ${val("company") || "unknown company"}`,
+    `Rating: ${r.rating ?? "–"}/5 (${r.rating ? (r.critical ? "Possible scam" : VERDICT[r.rating][1]) : "no posting"})`,
+    `Score: 30 start +${Math.round(r.up)} warning −${Math.round(r.down)} good = ${Math.round(r.total)}`,
+    `Ghost job signs: ${$("sGhost").textContent} · Scam signs: ${$("sScam").textContent}`,
+    ...(val("url") ? ["Job post: " + val("url")] : []), "",
+    "Warning signs:", ...(r.bad.length ? r.bad.map(i => item(i, "+")) : ["- none"]), "",
+    "Signs it's really open:", ...(r.good.length ? r.good.map(i => item(i, "−")) : ["- none"]), "",
+    "Still to check:", ...(r.unk.length ? r.unk.map(i => `- ${i.label}`) : ["- nothing"]), "",
+    `Checked with ${APP}. A screening aid, not proof either way.`
+  ];
+  const txt = lines.join("\n");
+  try { await navigator.clipboard.writeText(txt); toast("Report copied"); }
+  catch (e) { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); toast("Report copied"); } catch (_) { toast("Copy blocked. Select the text manually."); } ta.remove(); }
+};
+
+renderRules(); renderFound(); render(); go(1, false);
+</script>
+<!--APP-END-->
+</body>
+</html>
