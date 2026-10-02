@@ -1,0 +1,12 @@
+{
+  "name": "job-checker",
+  "private": true,
+  "description": "Rates LinkedIn job postings for ghost-job and scam risk.",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.3"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^6.0.2"
+  }
+}

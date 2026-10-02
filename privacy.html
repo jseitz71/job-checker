@@ -11,12 +11,21 @@
 <main class="doc">
   <p class="back"><a href="./">← Back to Job Checker</a></p>
   <h1>Privacy</h1>
-  <p class="meta">Effective October 2, 2026</p>
+  <p class="meta">Updated October 2, 2026</p>
 
   <p>Job Checker is built so that what you check stays with you. This page explains exactly what happens to your information.</p>
 
   <h2>What you paste stays in your browser</h2>
   <p>When you paste a job page, a job description or a recruiter's message, Job Checker reads it inside your web browser. The text, the details pulled from it, your answers and your rating are not sent to us or anyone else, and they are not stored. Refreshing or closing the page clears them.</p>
+
+  <h2>Automatic company lookups (only if you click the button)</h2>
+  <p>Step 3 has a <strong>Look up company facts</strong> button. Nothing is looked up unless you click it. When you do:</p>
+  <ul>
+    <li>Only the <strong>company name</strong>, <strong>job title</strong> and, if you added one, the <strong>company website</strong> are sent to Job Checker's lookup service. Your pasted text, answers and rating are never sent.</li>
+    <li>The service searches the web and news with <strong>Brave Search</strong>, checks the company's public job board on <strong>Greenhouse</strong>, <strong>Lever</strong> or <strong>Ashby</strong> if it has one, and asks <strong>Claude</strong> (by Anthropic) to summarize what the results show. These services receive the company name and job title as search terms. See <a href="https://search.brave.com/help/privacy-policy" target="_blank" rel="noopener">Brave's privacy policy</a> and <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">Anthropic's privacy policy</a>.</li>
+    <li>The results are saved for 24 hours, keyed to the company, title and website, so the same lookup isn't repeated. They contain nothing about you.</li>
+    <li>To keep costs in check, each visitor gets a few lookups a day. Visitors are counted using a one-way code made from your IP address and the date. The IP address itself isn't stored, and the count is only used for that day's limit.</li>
+  </ul>
 
   <h2>What is saved on your device</h2>
   <p>If you change the scoring criteria, your changes are saved in your browser's local storage so they're there next time. They never leave your device. To remove them, click <strong>Restore defaults</strong> under Scoring criteria, or clear this site's data in your browser settings.</p>
@@ -25,7 +34,7 @@
   <ul>
     <li>No accounts or sign-in.</li>
     <li>No cookies, analytics or advertising trackers.</li>
-    <li>Job Checker never visits LinkedIn or any job site on your behalf.</li>
+    <li>Job Checker never visits LinkedIn on your behalf. The only sites it contacts for you are the search and job-board services listed above, and only when you click the lookup button.</li>
   </ul>
 
   <h2>Services the page relies on</h2>
@@ -38,7 +47,7 @@
   <p>The search links in step 3 open Google, Google News or LinkedIn in a new tab. Those sites apply their own privacy policies. Job Checker doesn't see what you do there.</p>
 
   <h2>Changes to this policy</h2>
-  <p>If Job Checker adds a feature that sends information anywhere, such as automatic company lookups, this page will be updated first and the feature will say what it sends before you use it.</p>
+  <p>If Job Checker adds a feature that sends any other information anywhere, this page will be updated first and the feature will say what it sends before you use it.</p>
 
   <h2>Questions</h2>
   <p>Open an issue on the project's <a href="https://github.com/jseitz71/job-checker/issues" target="_blank" rel="noopener">GitHub page</a>.</p>
