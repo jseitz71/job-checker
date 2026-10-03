@@ -401,8 +401,8 @@ footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch
 const $ = id => document.getElementById(id);
 const STORE = "jc-rules-v1";
 const APP = "Job Checker";
-/* Set to the lookup function's URL once the backend is live, e.g. "/.netlify/functions/lookup" */
-const LOOKUP_URL = "";
+/* Company lookups run on the site's own server (netlify/functions/lookup.mts). Off when the page is opened as a local file. */
+const LOOKUP_URL = location.protocol.startsWith("http") ? "/api/lookup" : "";
 
 const DEFAULT_RULES = [
   { id:"evergreen", cat:"ghost", label:"“Always hiring” or talent-pool language", type:"red", weight:15, critical:false,
@@ -906,42 +906,57 @@ $("qs").addEventListener("click", e => {
 });
 $("qs").addEventListener("input", e => { const id = e.target.dataset.note; if (!id) return; notes[id] = e.target.value.trim(); render(); });
 
-function nowLabel() { return "today " + new Date().toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }); }
+function nowLabel(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  if (isNaN(d)) return "just now";
+  const time = d.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+  return d.toDateString() === new Date().toDateString() ? "today " + time : d.toLocaleDateString([], { month:"short", day:"numeric" }) + ", " + time;
+}
 function updateLookupBar() {
   const has = Object.keys(suggestions).length;
-  if (LOOKUP_URL) {
-    $("lookupBtn").disabled = !ctx().company.trim();
-    $("lookupBtn").textContent = has ? "Look up again" : "Look up company facts";
-    $("lookupText").textContent = "Job Checker can look up the careers page, reposts, layoffs, funding and more. Only the company name and job title are sent. You confirm each answer before it counts.";
-  } else if (SAMPLE_SUGG[example]) {
+  if (SAMPLE_SUGG[example]) {
     $("lookupBtn").disabled = false; $("lookupBtn").textContent = has ? "Reload sample lookup" : "Show sample lookup";
-    $("lookupText").textContent = "Automatic lookups aren't switched on yet. This example shows how they'll look, using clearly marked sample data. You confirm each answer before it counts.";
+    $("lookupText").textContent = "This is an example job at a fictional company, so the lookup uses clearly marked sample data. You confirm each answer before it counts.";
+  } else if (LOOKUP_URL) {
+    const co = ctx().company.trim();
+    $("lookupBtn").disabled = !co;
+    $("lookupBtn").textContent = has ? "Look up again" : "Look up company facts";
+    $("lookupText").textContent = co
+      ? "Job Checker can check the company's job board and search the web and news for reposts, layoffs, hiring freezes and funding. Only the company name, job title and website are sent. You confirm each answer before it counts."
+      : "Add the company name in step 2 to look up company facts.";
   } else {
     $("lookupBtn").disabled = true; $("lookupBtn").textContent = "Look up company facts";
-    $("lookupText").textContent = "Automatic company lookups are coming soon. For now, use the search link on each question. Load an example job to preview how lookups will look.";
+    $("lookupText").textContent = "Automatic lookups only work on the live site. Use the search link on each question instead.";
   }
 }
 $("lookupBtn").onclick = async () => {
   $("lookupMsg").textContent = "";
+  const sample = !!SAMPLE_SUGG[example];
   lookupState = "loading"; renderQs();
+  $("lookupBtn").disabled = true; $("lookupBtn").textContent = "Looking up…";
   try {
-    if (LOOKUP_URL) {
-      const c = ctx();
-      const res = await fetch(LOOKUP_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ company:c.company, title:c.title }) });
-      if (res.status === 429) throw new Error("Lookups are paused until tomorrow. The rest of Job Checker still works.");
-      if (!res.ok) throw new Error("The lookup didn't finish. Try again in a minute, or use the search links.");
-      const data = await res.json();
-      suggestions = {}; accepted = {};
-      for (const [id, s] of Object.entries(data.suggestions || {})) suggestions[id] = { ...s, checked: s.checked || nowLabel(), sources: s.sources || [] };
-    } else {
+    suggestions = {}; accepted = {};
+    let note = "";
+    if (sample) {
       await new Promise(r => setTimeout(r, 700));
-      suggestions = {}; accepted = {};
-      for (const [id, s] of Object.entries(SAMPLE_SUGG[example] || {})) suggestions[id] = { ...s, sample:true, checked:nowLabel() };
+      for (const [id, s] of Object.entries(SAMPLE_SUGG[example])) suggestions[id] = { ...s, sample:true, checked:nowLabel() };
+    } else {
+      const c = ctx();
+      let res;
+      try {
+        res = await fetch(LOOKUP_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ company:c.company, title:c.title, site:val("site") }) });
+      } catch (e) { throw new Error("Couldn't reach the lookup service. Check your connection and try again, or use the search links."); }
+      let data = {};
+      try { data = await res.json(); } catch (e) {}
+      if (!res.ok) throw new Error(data.error || "The lookup didn't finish. Try again in a minute, or use the search links.");
+      const when = nowLabel(data.checked);
+      for (const [id, s] of Object.entries(data.suggestions || {})) suggestions[id] = { answer:s.answer, summary:s.summary || "", sources:s.sources || [], checked: when + (data.cached ? " (saved result)" : "") };
+      if (data.cached) note = " This result was saved from an earlier lookup today, so it didn't use up one of your lookups.";
     }
-    QUESTIONS.forEach(q => { if (q.auto && !suggestions[q.id]) suggestions[q.id] = { answer:"none", summary:"No results came back for this check.", sources:[], checked:nowLabel(), sample:!LOOKUP_URL }; });
+    QUESTIONS.forEach(q => { if (q.auto && !suggestions[q.id]) suggestions[q.id] = { answer:"none", summary:"This check couldn't be run.", sources:[], checked:nowLabel(), sample }; });
     const n = Object.values(suggestions).filter(s => s.answer !== "none").length;
-    $("lookupMsg").textContent = `Found suggestions for ${n} of ${Object.keys(suggestions).length} checks. Review each one and click “Use this answer” to count it.`;
-  } catch (err) { $("lookupMsg").textContent = err.message; }
+    $("lookupMsg").textContent = `Found suggestions for ${n} of ${Object.keys(suggestions).length} checks. Review each one and click “Use this answer” to count it.` + note;
+  } catch (err) { suggestions = {}; $("lookupMsg").textContent = err.message; }
   lookupState = "idle"; renderQs(); updateLookupBar(); render();
 };
 
