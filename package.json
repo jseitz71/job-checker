@@ -3,10 +3,17 @@
   "private": true,
   "description": "Rates LinkedIn job postings for ghost-job and scam risk.",
   "type": "module",
+  "scripts": {
+    "check": "npm run check:tokens && npm run check:a11y",
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:a11y": "node scripts/check-a11y.mjs"
+  },
   "dependencies": {
     "@netlify/blobs": "^11.1.3"
   },
   "devDependencies": {
-    "@netlify/functions": "^6.0.2"
+    "@axe-core/playwright": "^4.14.0",
+    "@netlify/functions": "^6.0.2",
+    "playwright": "^1.56.0"
   }
 }
