@@ -1,0 +1,26 @@
+# Runs the design-token and accessibility checks on every pull request and on main.
+# A failing check blocks the merge (once "Require status checks" is on for main).
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Design tokens
+        run: npm run check:tokens
+      - name: Install browser for accessibility check
+        run: npx playwright install --with-deps chromium
+      - name: Accessibility (WCAG 2.2 AA, light/dark, desktop/phone)
+        run: npm run check:a11y

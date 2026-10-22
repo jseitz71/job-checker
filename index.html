@@ -8,40 +8,9 @@
 <meta name="description" content="Paste a LinkedIn job page and see how likely it is to be a ghost job, with every finding traced to its source.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="tokens.css">
 <style>
 /* Layout: four-step inspector — stepper bar with live rating, one screen per step, criteria drawer at the foot */
-:root {
-  --bg: #f3f5f7;
-  --surface: #ffffff;
-  --sunk: #e8ecf0;
-  --ink: #17212b;
-  --muted: #5a6876;
-  --line: #d3dae1;
-  --accent: #1f6f8b;
-  --accent-ink: #ffffff;
-  --bad: #b3261e;  --bad-bg: #fbe9e7;
-  --warn: #9a6200; --warn-bg: #fdf1dc;
-  --good: #1e7a46; --good-bg: #e3f4ea;
-  --ghost: #5b4fa8; --ghost-bg: #ece9f8;
-  --mark: #ffe08a;
-  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #11171d; --surface: #18212a; --sunk: #0d1318; --ink: #e4eaf0; --muted: #94a3b1; --line: #2a3642;
-  --accent: #5fb4d3; --accent-ink: #0b1a21;
-  --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f2bb5a; --warn-bg: #352a14; --good: #6fd39a; --good-bg: #16301f;
-  --ghost: #b3a8f5; --ghost-bg: #26223f; --mark: #6b5a1c;
-  color-scheme: dark } }
-:root[data-theme="dark"] {
-  --bg: #11171d; --surface: #18212a; --sunk: #0d1318; --ink: #e4eaf0; --muted: #94a3b1; --line: #2a3642;
-  --accent: #5fb4d3; --accent-ink: #0b1a21;
-  --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f2bb5a; --warn-bg: #352a14; --good: #6fd39a; --good-bg: #16301f;
-  --ghost: #b3a8f5; --ghost-bg: #26223f; --mark: #6b5a1c;
-  color-scheme: dark }
-
 * { box-sizing: border-box }
 [hidden] { display: none !important; }
 html, body { margin: 0 }
@@ -56,6 +25,7 @@ p { margin: 0; }
 .lede { color: var(--muted); max-width: 62ch; margin-top: 6px; }
 .eyebrow { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .fine { font-size: 12px; color: var(--muted); }
+summary .fine { font-weight: 400; }
 a { color: var(--accent); }
 code { font-family: var(--f-mono); font-size: .92em; background: var(--sunk); padding: 1px 4px; border-radius: 3px; }
 kbd { font: 500 12px var(--f-mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; background: var(--surface); white-space: nowrap; }
@@ -200,7 +170,7 @@ textarea { resize: vertical; line-height: 1.55; }
 .findings .crit { color: var(--bad); font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; }
 .findings .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--muted); }
 .findings q { font-size: 13px; color: var(--muted); quotes: "“" "”"; overflow-wrap: anywhere; }
-mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 2px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 2px; border-radius: 2px; } /* --ink, not inherit: muted text on --mark fails contrast (2.6:1 in dark) */
 .math { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 8px; }
 .math td { padding: 4px 0; border-bottom: 1px solid var(--line); }
 .math td:last-child { text-align: right; font-family: var(--f-mono); }
@@ -228,6 +198,10 @@ table.rt { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 
 .terms { font-family: var(--f-mono); }
 @media (prefers-reduced-motion: no-preference) { .rt tr.flash td { animation: flash 1.6s ease-out; } }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; z-index: 5; }
+/* Spacing utilities (use instead of inline style attributes) */
+.mt-2 { margin-top: var(--space-2); } .mt-3 { margin-top: var(--space-3); } .mb-2 { margin-bottom: var(--space-2); }
+.note { font-size: 13px; }
+.rt td.w-label { min-width: 200px; } .rt td.w-terms { min-width: 300px; }
 footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch; display: grid; gap: 6px; }
 @media (prefers-reduced-motion: no-preference) { .scale i { transition: background .25s } }
 </style>
@@ -298,7 +272,7 @@ footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch
       <div class="msg warn" id="editMsg" role="alert"></div>
       <details>
         <summary>More details (optional)</summary>
-        <div class="fields" style="margin-top:12px">
+        <div class="fields mt-3">
           <label class="f">Where you found it
             <select id="source">
               <option value="board">LinkedIn or another big job board</option>
@@ -355,7 +329,7 @@ footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch
         </div>
         <details>
           <summary>How this rating was worked out</summary>
-          <p class="fine" style="margin-top:8px">Every posting starts at 30 points, the middle of “Uncertain”. Warning signs add points and good signs subtract them. The total picks the rating; a scam deal-breaker sets it to 1.</p>
+          <p class="fine mt-2">Every posting starts at 30 points, the middle of “Uncertain”. Warning signs add points and good signs subtract them. The total picks the rating; a scam deal-breaker sets it to 1.</p>
           <table class="math" id="math"></table>
           <div class="bands" id="bands"></div>
         </details>
@@ -368,9 +342,9 @@ footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch
         <p class="fine">A screening aid based on common patterns, not proof either way. Companies don't publish which postings lead to hires, so even a 5 is worth confirming on the company's own careers page.</p>
       </div>
       <div class="panel">
-        <div><h3 style="margin-bottom:8px">Warning signs <span class="fine" id="nBad"></span></h3><ul class="findings" id="fBad"></ul></div>
-        <div><h3 style="margin-bottom:8px">Signs it's really open <span class="fine" id="nGood"></span></h3><ul class="findings" id="fGood"></ul></div>
-        <details><summary>Still to check (<span id="nUnk">0</span>)</summary><ul class="findings" id="fUnk" style="margin-top:8px"></ul></details>
+        <div><h3 class="mb-2">Warning signs <span class="fine" id="nBad"></span></h3><ul class="findings" id="fBad"></ul></div>
+        <div><h3 class="mb-2">Signs it's really open <span class="fine" id="nGood"></span></h3><ul class="findings" id="fGood"></ul></div>
+        <details><summary>Still to check (<span id="nUnk">0</span>)</summary><ul class="findings mt-2" id="fUnk"></ul></details>
       </div>
     </div>
   </section>
@@ -378,7 +352,7 @@ footer { margin-top: 24px; font-size: 12px; color: var(--muted); max-width: 80ch
   <details class="rules" id="rulesWrap">
     <summary>Scoring criteria<span class="fine">What Job Checker looks for and how much each sign counts</span></summary>
     <div class="rules-body">
-      <p class="fine" style="font-size:13px">These phrase rules scan the job description. Separate phrases with commas; start one with <code>re:</code> to use a regular expression. Weight is how many points a match adds or removes. Built-in checks for posting age, applicants, experience range, tool lists, pay, LinkedIn status labels and the recruiter's email run alongside them. Your edits are saved in this browser only.</p>
+      <p class="fine note">These phrase rules scan the job description. Separate phrases with commas; start one with <code>re:</code> to use a regular expression. Weight is how many points a match adds or removes. Built-in checks for posting age, applicants, experience range, tool lists, pay, LinkedIn status labels and the recruiter's email run alongside them. Your edits are saved in this browser only.</p>
       <div class="btnrow"><button type="button" class="small" id="addRule">Add rule</button><button type="button" class="small" id="resetRules">Restore defaults</button></div>
       <div class="tbl">
         <table class="rt">
@@ -893,7 +867,7 @@ function renderQs() {
   const main = QUESTIONS.filter(q => q.cat !== "scam"), scam = QUESTIONS.filter(q => q.cat === "scam");
   const answered = scam.some(q => answers[q.id]);
   $("qs").innerHTML = `<div class="qgroup">${main.map(qRow).join("")}</div>
-    <details id="scamQs" ${open || answered ? "open" : ""} style="margin-top:14px"><summary><span class="tag scam">scam</span> Scam checks <span class="fine" style="font-weight:400">· if a recruiter has contacted you</span></summary><div class="qgroup" style="margin-top:10px">${scam.map(qRow).join("")}</div></details>`;
+    <details id="scamQs" ${open || answered ? "open" : ""} class="mt-3"><summary><span class="tag scam">scam</span> Scam checks <span class="fine">· if a recruiter has contacted you</span></summary><div class="qgroup mt-3">${scam.map(qRow).join("")}</div></details>`;
 }
 $("qs").addEventListener("click", e => {
   const acc = e.target.closest("button[data-accept]");
@@ -1035,12 +1009,12 @@ $("again").onclick = () => {
 function renderRules() {
   $("ruleBody").innerHTML = rules.map((r, i) => `<tr>
     <td class="c"><input type="checkbox" id="on-${i}" data-i="${i}" data-k="enabled" ${r.enabled ? "checked" : ""} aria-label="Enable ${esc(r.label)}"></td>
-    <td style="min-width:200px"><input type="text" id="lb-${i}" data-i="${i}" data-k="label" value="${esc(r.label)}" aria-label="Criterion name"></td>
+    <td class="w-label"><input type="text" id="lb-${i}" data-i="${i}" data-k="label" value="${esc(r.label)}" aria-label="Criterion name"></td>
     <td><select id="ct-${i}" data-i="${i}" data-k="cat" aria-label="Problem"><option value="ghost" ${r.cat === "ghost" ? "selected" : ""}>Ghost job</option><option value="scam" ${r.cat !== "ghost" ? "selected" : ""}>Scam</option></select></td>
     <td><select id="ty-${i}" data-i="${i}" data-k="type" aria-label="Type"><option value="red" ${r.type === "red" ? "selected" : ""}>Warning sign</option><option value="green" ${r.type === "green" ? "selected" : ""}>Good sign</option></select></td>
     <td><input type="number" id="wt-${i}" min="0" max="100" data-i="${i}" data-k="weight" value="${r.weight}" aria-label="Weight"></td>
     <td class="c"><input type="checkbox" id="cr-${i}" data-i="${i}" data-k="critical" ${r.critical ? "checked" : ""} aria-label="Deal-breaker"></td>
-    <td style="min-width:300px"><input type="text" class="terms" id="tm-${i}" data-i="${i}" data-k="terms" value="${esc(r.terms.join(", "))}" placeholder="Add phrases, separated by commas" aria-label="Phrases"></td>
+    <td class="w-terms"><input type="text" class="terms" id="tm-${i}" data-i="${i}" data-k="terms" value="${esc(r.terms.join(", "))}" placeholder="Add phrases, separated by commas" aria-label="Phrases"></td>
     <td><button type="button" class="small" data-del="${i}" aria-label="Delete rule">Delete</button></td></tr>`).join("");
 }
 $("ruleBody").addEventListener("change", e => {

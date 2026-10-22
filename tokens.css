@@ -1,0 +1,68 @@
+/*
+ * Job Checker design tokens: the single source of truth for color, type, spacing and radius.
+ *
+ * Every page loads this file first. All other CSS and HTML must reference these
+ * variables (var(--accent), var(--f-body), var(--space-3) ...) instead of raw values.
+ * This is the ONLY file allowed to contain literal colors or font names; the token
+ * check (scripts/check-tokens.mjs) enforces that for people and coding agents alike.
+ *
+ * To change the look, change values here. To add a token, add it here (light AND dark),
+ * then use it. Status colors carry meaning, so don't use them for decoration.
+ */
+
+:root {
+  /* Neutrals: cool, slightly blue grays */
+  --bg: #f3f5f7;        /* page background, form fields */
+  --surface: #ffffff;   /* cards and panels */
+  --sunk: #e8ecf0;      /* recessed areas: chips, sub-panels, code */
+  --ink: #17212b;       /* primary text */
+  --muted: #5a6876;     /* secondary text: hints, labels, captions */
+  --line: #d3dae1;      /* borders and dividers */
+
+  /* The one accent: primary buttons, links, active step, focus rings */
+  --accent: #1f6f8b;
+  --accent-ink: #ffffff; /* text on --accent */
+
+  /* Status colors: meaning only. Each pairs a foreground with a tinted background. */
+  --bad: #b3261e;   --bad-bg: #fbe9e7;    /* warning signs, scams */
+  --warn: #9a6200;  --warn-bg: #fdf1dc;   /* uncertain, samples */
+  --good: #1e7a46;  --good-bg: #e3f4ea;   /* good signs, edited items */
+  --ghost: #5b4fa8; --ghost-bg: #ece9f8;  /* ghost-job signs, looked-up suggestions */
+  --mark: #ffe08a;                        /* highlighted phrase in a quote */
+
+  /* Type */
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif; /* name, headings, big rating */
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;          /* body, buttons, fields */
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;   /* small labels, numbers, score math */
+
+  /* Spacing scale (4px base). Use these for new margins, padding and gaps. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Corner radius */
+  --radius-s: 3px;  /* tags, chips */
+  --radius-m: 6px;  /* buttons, fields */
+  --radius-l: 8px;  /* inner boxes */
+  --radius-xl: 10px; /* panels */
+
+  color-scheme: light;
+}
+
+/* Dark theme: follows the system setting unless the page forces light. Keep both blocks in sync. */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11171d; --surface: #18212a; --sunk: #0d1318; --ink: #e4eaf0; --muted: #94a3b1; --line: #2a3642;
+  --accent: #5fb4d3; --accent-ink: #0b1a21;
+  --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f2bb5a; --warn-bg: #352a14; --good: #6fd39a; --good-bg: #16301f;
+  --ghost: #b3a8f5; --ghost-bg: #26223f; --mark: #6b5a1c;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11171d; --surface: #18212a; --sunk: #0d1318; --ink: #e4eaf0; --muted: #94a3b1; --line: #2a3642;
+  --accent: #5fb4d3; --accent-ink: #0b1a21;
+  --bad: #ff8a80; --bad-bg: #3a1c1a; --warn: #f2bb5a; --warn-bg: #352a14; --good: #6fd39a; --good-bg: #16301f;
+  --ghost: #b3a8f5; --ghost-bg: #26223f; --mark: #6b5a1c;
+  color-scheme: dark }
